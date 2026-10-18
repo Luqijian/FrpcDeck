@@ -67,6 +67,7 @@ export const store = reactive({
   instanceId: initialInstanceId(),
   instance: null,
   instances: [],
+  monitor: null,
   saving: false,
   initializing: false,
   busy: false,
@@ -144,6 +145,7 @@ function resetState() {
   store.config = null;
   store.savedConfig = null;
   store.savedAt = null;
+  store.monitor = null;
   store.logs = [];
   store.issues = [];
   store.warnings = [];
@@ -197,6 +199,7 @@ async function loadBootstrap() {
   store.savedConfig = clone(data.config);
   store.savedAt = data.savedAt;
   store.settings = data.settings;
+  store.monitor = data.monitor || null;
   store.runtime = data.runtime;
   store.frpc = data.frpc;
   store.app = data.app;
@@ -210,6 +213,12 @@ export async function refreshInstances() {
   const data = await api.get('/api/instances');
   store.instances = data.instances || [];
   return store.instances;
+}
+
+export async function refreshMonitor() {
+  const data = await api.get('/api/monitor');
+  store.monitor = data;
+  return data;
 }
 
 export async function switchInstance(id) {

@@ -18,7 +18,7 @@ FrpcDeck 提供 GHCR 公开镜像，支持 `linux/amd64` 和 `linux/arm64`：
 
 ```text
 ghcr.io/luqijian/frpcdeck:latest
-ghcr.io/luqijian/frpcdeck:3.1.1
+ghcr.io/luqijian/frpcdeck:3.2.0
 ```
 
 镜像页面：<https://github.com/Luqijian/FrpcDeck/pkgs/container/frpcdeck>
@@ -54,7 +54,7 @@ docker run -d \
   ghcr.io/luqijian/frpcdeck:latest
 ```
 
-> 使用预构建镜像时，`IMAGE_TAG` 控制 Compose 拉取的标签；`latest` 跟随主分支，生产环境建议固定为 `3.1.1`。
+> 使用预构建镜像时，`IMAGE_TAG` 控制 Compose 拉取的标签；`latest` 跟随主分支，生产环境建议固定为 `3.2.0`。
 
 ## 快速开始（无需克隆仓库）
 
@@ -71,7 +71,7 @@ name: frpcdeck
 
 services:
   frpcdeck:
-    image: ghcr.io/luqijian/frpcdeck:${IMAGE_TAG:-3.1.1}
+    image: ghcr.io/luqijian/frpcdeck:${IMAGE_TAG:-3.2.0}
     container_name: frpcdeck
     restart: unless-stopped
     stop_grace_period: 15s
@@ -97,7 +97,7 @@ services:
 WEBUI_PORT=8080
 
 # 固定版本；latest 会跟随主分支
-IMAGE_TAG=3.1.1
+IMAGE_TAG=3.2.0
 
 # 时区
 TZ=Asia/Shanghai
@@ -159,7 +159,7 @@ name: frpcdeck
 
 services:
   frpcdeck:
-    image: ghcr.io/luqijian/frpcdeck:${IMAGE_TAG:-3.1.1}
+    image: ghcr.io/luqijian/frpcdeck:${IMAGE_TAG:-3.2.0}
     container_name: frpcdeck
     restart: unless-stopped
     stop_grace_period: 15s
@@ -215,7 +215,7 @@ docker compose up -d
 
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
-| `IMAGE_TAG` | `latest` | Compose 使用的 GHCR 镜像标签，例如 `3.1.1`。 |
+| `IMAGE_TAG` | `latest` | Compose 使用的 GHCR 镜像标签，例如 `3.2.0`。 |
 | `PORT` | `8080` | 面板监听端口（容器内）。 |
 | `HOST` | `0.0.0.0` | 面板监听地址。 |
 | `DATA_DIR` | `/data`（镜像内） | 配置、认证、备份、会话密钥的持久化目录。 |
@@ -277,6 +277,27 @@ IMAGE_TAG=local docker compose up -d
 
 每个 frpc 进程都会占用自己的本地管理端口，默认 7400、7401……；新建实例时会自动分配，避免冲突。
 
+## frps 流量监控
+
+监控页面需要读取 frps Dashboard。frpc 的本地管理接口不提供流量统计。
+
+在 frps 配置中启用 Dashboard：
+
+```toml
+webServer.addr = "0.0.0.0"
+webServer.port = 7500
+webServer.user = "admin"
+webServer.password = "change-me"
+```
+
+然后在每个实例的 **设置 → frps 流量监控** 中填写地址和认证信息。地址留空时会尝试 `http://<frps地址>:7500`。
+
+- 每 15 秒采样一次，页面读取缓存，不对 frps 高频请求
+- 未启用时零额外请求
+- 建议只在内网开放 7500，或放在 HTTPS 反向代理后面
+
+![流量监控](screenshots/monitor.png)
+
 ## 内置文档
 
 登录后侧边栏的「文档」页面会直接展示随镜像发布的 Markdown 文档，支持分类导航、搜索、代码块、表格、截图和文档间跳转。
@@ -316,7 +337,7 @@ docker compose pull
 docker compose up -d
 ```
 
-升级到固定版本：在 `.env` 中设置 `IMAGE_TAG=3.1.1`（或新版本号），然后重新执行上面的命令。
+升级到固定版本：在 `.env` 中设置 `IMAGE_TAG=3.2.0`（或新版本号），然后重新执行上面的命令。
 
 - 数据在 `./data`，重建容器不会丢失。
 - 迁移服务器时，把整个 `data/` 目录复制到新服务器即可（注意权限 0600）。

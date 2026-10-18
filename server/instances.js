@@ -3,6 +3,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { Store } from './store.js';
 import { FrpcManager } from './frpc.js';
+import { FrpsMonitor } from './monitor.js';
 import { createDefaultConfig, hasErrors, normalizeConfig, validateConfig } from './config.js';
 
 const META_VERSION = 1;
@@ -135,6 +136,10 @@ export class InstanceManager {
           getSettings: () => store.settings,
         });
         await frpc.init();
+        const monitor = new FrpsMonitor({
+          getConfig: () => store.config,
+          getSettings: () => store.settings,
+        }).start();
         this.warnings.push(...store.warnings.map((warning) => `${item.name}: ${warning}`));
         this.instances.set(item.id, {
           id: item.id,
@@ -143,6 +148,7 @@ export class InstanceManager {
           dir,
           store,
           frpc,
+          monitor,
         });
       } catch (error) {
         this.warnings.push(`实例「${item.name}」加载失败：${error.message}`);
@@ -268,7 +274,11 @@ export class InstanceManager {
       getSettings: () => store.settings,
     });
     await frpc.init();
-    const instance = { id, name, createdAt: nowIso(), dir, store, frpc };
+    const monitor = new FrpsMonitor({
+      getConfig: () => store.config,
+      getSettings: () => store.settings,
+    }).start();
+    const instance = { id, name, createdAt: nowIso(), dir, store, frpc, monitor };
     this.instances.set(id, instance);
     this.meta.instances.push({ id, name, createdAt: instance.createdAt });
     if (!this.meta.lastInstance) this.meta.lastInstance = id;
@@ -304,6 +314,7 @@ export class InstanceManager {
     const instance = this.get(id);
     if (!instance) throw new Error('实例不存在');
     if (this.instances.size <= 1) throw new Error('至少需要保留一个实例');
+    instance.monitor?.stop();
     await instance.frpc.dispose().catch(() => {});
     this.instances.delete(instance.id);
     this.meta.instances = this.meta.instances.filter((item) => item.id !== instance.id);
@@ -318,7 +329,10 @@ export class InstanceManager {
   }
 
   async dispose() {
-    await Promise.all([...this.instances.values()].map((instance) => instance.frpc.dispose().catch(() => {})));
+    await Promise.all([...this.instances.values()].map((instance) => {
+      instance.monitor?.stop();
+      return instance.frpc.dispose().catch(() => {});
+    }));
   }
 
   async #saveMeta() {

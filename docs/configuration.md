@@ -256,6 +256,28 @@ FrpcDeck 只识别 `parseNumberRangePair` 端口范围模式。包含 `if`、自
 
 官方语法参考：[Port Range Mapping](https://gofrp.org/en/docs/features/common/range/)。
 
+## 流量监控
+
+frpc 自己的管理接口只返回代理状态，不返回流量和连接数。FrpcDeck 的监控页面读取 **frps Dashboard API**：
+
+```toml
+# frps.toml
+webServer.addr = "0.0.0.0"
+webServer.port = 7500
+webServer.user = "admin"
+webServer.password = "change-me"
+```
+
+- 每个实例独立配置：**设置 → frps 流量监控**
+- 填写 Dashboard 地址（例如 `http://frps.example.com:7500`）、用户名和密码
+- 地址留空时会尝试 `http://<serverAddr>:7500`
+- 仅读取 `/api/serverinfo` 和当前实例涉及的 `/api/proxy/<type>`，不写入 frps
+- 默认每 **15 秒**采样一次，监控页面每 10 秒读取缓存快照
+- 未启用时不会发起任何 frps Dashboard 请求，也不影响 frpc 运行
+- Dashboard 密码保存在实例的 `settings.json`（0600）
+
+监控数据包括今日入站/出站、实时速率、活跃连接、frpc 客户端数量和每个代理的今日流量。frps Dashboard 建议只监听内网，或通过 HTTPS 反向代理保护，不要直接暴露到公网。
+
 ## 校验规则概览
 
 面板会检查：

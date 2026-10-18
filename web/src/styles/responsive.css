@@ -138,7 +138,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 45px;
+    width: min(40px, 100%);
     height: 27px;
     border-radius: 9px;
     transition: background var(--transition);

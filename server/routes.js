@@ -308,6 +308,7 @@ export async function registerRoutes(app, services) {
       instanceId: ctx.instance.id,
       instance: manager.summary(ctx.instance),
       instances: manager.summaries(ctx.instance.id),
+      monitor: ctx.instance.monitor?.snapshot() || null,
       runtime: ctx.frpc.runtime(),
       frpc: {
         bin: ctx.frpc.bin,
@@ -731,12 +732,22 @@ export async function registerRoutes(app, services) {
     return reply;
   });
 
+  // ------------------------------------------------------------- monitor ----
+  app.get('/api/monitor', async () => context().instance.monitor?.snapshot() || null);
+
   // ------------------------------------------------------------- settings ----
   app.get('/api/settings', async () => ({ settings: store.settings }));
 
   app.put('/api/settings', async (request) => {
     const body = bodyObject(request);
+    if (body.monitor && typeof body.monitor === 'object') {
+      const url = String(body.monitor.url || '').trim();
+      if (url && !/^https?:\/\/[^\s]+$/i.test(url) && !/^[A-Za-z0-9_.:[\]-]+$/.test(url)) {
+        throw apiError(400, 'invalid-monitor-url', 'frps Dashboard 地址格式不正确');
+      }
+    }
     const settings = await store.saveSettings(body);
+    context().instance.monitor?.wake();
     return { settings };
   });
 

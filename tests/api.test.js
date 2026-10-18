@@ -157,6 +157,15 @@ test('initial password is forced to change before bootstrap', async () => {
   assert.equal(bootstrap.data.settings.autoStart, true);
 });
 
+test('monitor endpoint is disabled until configured', async () => {
+  const monitor = await request('/api/monitor');
+  assert.equal(monitor.response.status, 200);
+  assert.equal(monitor.data.enabled, false);
+  assert.equal(monitor.data.available, false);
+  const bootstrap = await request('/api/bootstrap');
+  assert.equal(bootstrap.data.monitor.enabled, false);
+});
+
 test('documentation API lists docs and serves markdown/assets', async () => {
   const list = await request('/api/docs');
   assert.equal(list.response.status, 200);

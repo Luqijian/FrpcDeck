@@ -26,6 +26,12 @@ const routes = [
         meta: { title: '概览', subtitle: 'frpc 运行状态与快捷操作' },
       },
       {
+        path: 'monitor',
+        name: 'monitor',
+        component: () => import('./pages/MonitorPage.vue'),
+        meta: { title: '监控', subtitle: 'frps 流量、吞吐与连接数' },
+      },
+      {
         path: 'proxies',
         name: 'proxies',
         component: () => import('./pages/ProxiesPage.vue'),

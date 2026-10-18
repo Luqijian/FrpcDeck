@@ -144,6 +144,28 @@
       </article>
     </section>
 
+    <section v-if="store.monitor?.available" class="dash-monitor-strip">
+      <div class="dash-monitor-item">
+        <span>今日流量</span>
+        <strong>{{ formatBytes((store.monitor.today?.in || 0) + (store.monitor.today?.out || 0)) }}</strong>
+        <small>入 {{ formatBytes(store.monitor.today?.in) }} · 出 {{ formatBytes(store.monitor.today?.out) }}</small>
+      </div>
+      <div class="dash-monitor-item">
+        <span>当前速度</span>
+        <strong>{{ formatBytes(store.monitor.server?.inBps, { rate: true }) }} / {{ formatBytes(store.monitor.server?.outBps, { rate: true }) }}</strong>
+        <small>frps 入站 / 出站</small>
+      </div>
+      <div class="dash-monitor-item">
+        <span>活跃连接</span>
+        <strong>{{ formatCount(store.monitor.today?.connections) }}</strong>
+        <small>{{ store.monitor.server?.clientCounts || 0 }} 个客户端</small>
+      </div>
+      <RouterLink to="/monitor" class="btn btn-ghost btn-sm dash-monitor-link">
+        <Activity :size="14" />
+        查看监控
+      </RouterLink>
+    </section>
+
     <div class="dash-grid">
       <section class="card proxy-overview-card">
         <header class="card-head">
@@ -390,6 +412,7 @@ import {
   formatTime,
   formatUptime,
   previewToml,
+  refreshMonitor,
   refreshRuntime,
   runtimeAction,
   store,
@@ -398,6 +421,8 @@ import {
 } from '@/store';
 import {
   batchPortCount,
+  formatBytes,
+  formatCount,
   proxyEndpoint,
   proxyLocal,
   proxyMeta,
@@ -578,6 +603,7 @@ onMounted(async () => {
     now.value = Date.now();
   }, 10000);
   refreshRuntime().catch(() => {});
+  refreshMonitor().catch(() => {});
   validateDraft().catch(() => {});
 });
 

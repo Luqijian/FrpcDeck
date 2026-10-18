@@ -19,6 +19,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Nothing yet.
 
+## [3.2.0] - 2026-10-18
+
+### Added
+
+- Per-instance **frps traffic monitoring** integration, configured from Settings.
+- New **监控** page with daily ingress/egress, live throughput, active connections and per-proxy traffic.
+- Dashboard traffic strip with daily totals, live rates, connections and a monitor shortcut.
+- Traffic history, byte/rate formatting and frps Dashboard connection status.
+- Optional Basic Auth and automatic `http://<frps>:7500` Dashboard URL fallback.
+- Monitor API and documentation.
+
+### Performance
+
+- frps Dashboard sampling every 15 seconds; disabled monitoring makes no outbound requests.
+- Monitor page reads cached snapshots; only proxy types used by the current instance are queried.
+- Traffic history capped at 60 samples per instance.
+
 ## [3.1.1] - 2026-10-18
 
 ### Changed
@@ -178,7 +195,8 @@ Initial public release.
 - Sensitive configuration files are written with mode `0600`; the data directory uses `0700`.
 - The frpc admin API is bound to `127.0.0.1` by default.
 
-[Unreleased]: https://github.com/Luqijian/FrpcDeck/compare/v3.1.1...HEAD
+[Unreleased]: https://github.com/Luqijian/FrpcDeck/compare/v3.2.0...HEAD
+[3.2.0]: https://github.com/Luqijian/FrpcDeck/compare/v3.1.1...v3.2.0
 [3.1.1]: https://github.com/Luqijian/FrpcDeck/compare/v3.1.0...v3.1.1
 [3.1.0]: https://github.com/Luqijian/FrpcDeck/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/Luqijian/FrpcDeck/compare/v2.1.1...v3.0.0

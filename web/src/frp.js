@@ -336,3 +336,20 @@ export function formatDuration(seconds) {
   if (value < 86400) return `${Math.floor(value / 3600)}h ${Math.floor((value % 3600) / 60)}m`;
   return `${Math.floor(value / 86400)}d ${Math.floor((value % 86400) / 3600)}h`;
 }
+
+export function formatBytes(value, { rate = false } = {}) {
+  const bytes = Math.max(0, Number(value) || 0);
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let amount = bytes;
+  let index = 0;
+  while (amount >= 1024 && index < units.length - 1) {
+    amount /= 1024;
+    index += 1;
+  }
+  const digits = index === 0 ? 0 : amount >= 100 ? 0 : amount >= 10 ? 1 : 2;
+  return `${amount.toFixed(digits)} ${units[index]}${rate ? '/s' : ''}`;
+}
+
+export function formatCount(value) {
+  return new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 0 }).format(Number(value) || 0);
+}

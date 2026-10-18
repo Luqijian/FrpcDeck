@@ -193,6 +193,7 @@ import {
   BookOpen,
   Check,
   ChevronRight,
+  Activity,
   Layers,
   LayoutDashboard,
   Loader2,
@@ -228,6 +229,7 @@ let clockTimer = null;
 
 const primaryNav = computed(() => [
   { name: 'dashboard', label: '概览', icon: LayoutDashboard },
+  { name: 'monitor', label: '监控', icon: Activity },
   { name: 'proxies', label: '代理', icon: Waypoints, count: proxyCount.value },
   { name: 'visitors', label: '访问器', icon: ArrowLeftRight, count: visitorCount.value },
 ]);
@@ -242,6 +244,7 @@ const secondaryNav = computed(() => [
 
 const mobileNav = computed(() => [
   { name: 'dashboard', label: '概览', icon: LayoutDashboard },
+  { name: 'monitor', label: '监控', icon: Activity },
   { name: 'proxies', label: '代理', icon: Waypoints },
   { name: 'visitors', label: '访问器', icon: ArrowLeftRight },
   { name: 'connection', label: '连接', icon: Server },

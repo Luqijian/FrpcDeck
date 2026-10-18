@@ -10,6 +10,16 @@ import {
 } from './config.js';
 
 const BACKUP_LIMIT = 30;
+const DEFAULT_SETTINGS = {
+  autoStart: true,
+  autoRestart: false,
+  monitor: {
+    enabled: false,
+    url: '',
+    username: '',
+    password: '',
+  },
+};
 
 export class Store {
   constructor(dataDir) {
@@ -24,7 +34,7 @@ export class Store {
     };
     this.config = null;
     this.savedAt = null;
-    this.settings = { autoStart: true, autoRestart: false };
+    this.settings = { ...DEFAULT_SETTINGS, monitor: { ...DEFAULT_SETTINGS.monitor } };
     this.secret = '';
     this.warnings = [];
   }
@@ -33,7 +43,15 @@ export class Store {
     await fs.mkdir(this.dataDir, { recursive: true, mode: 0o700 });
     await fs.mkdir(this.paths.backups, { recursive: true, mode: 0o700 });
     this.secret = await this.#loadOrCreateSecret();
-    this.settings = { ...this.settings, ...(await this.#readJson(this.paths.settings, {})) };
+    const storedSettings = await this.#readJson(this.paths.settings, {});
+    this.settings = {
+      ...DEFAULT_SETTINGS,
+      ...storedSettings,
+      monitor: {
+        ...DEFAULT_SETTINGS.monitor,
+        ...(storedSettings.monitor && typeof storedSettings.monitor === 'object' ? storedSettings.monitor : {}),
+      },
+    };
     await this.#loadConfig();
     await this.#writeFileAtomic(this.paths.toml, generateToml(this.config), 0o600);
     return this;
@@ -116,12 +134,20 @@ export class Store {
   }
 
   async saveSettings(patch) {
+    const monitorPatch = patch.monitor && typeof patch.monitor === 'object' ? patch.monitor : {};
     this.settings = {
       ...this.settings,
       autoStart: patch.autoStart === undefined ? this.settings.autoStart : Boolean(patch.autoStart),
       autoRestart: patch.autoRestart === undefined ? this.settings.autoRestart : Boolean(patch.autoRestart),
+      monitor: {
+        ...this.settings.monitor,
+        enabled: monitorPatch.enabled === undefined ? this.settings.monitor.enabled : Boolean(monitorPatch.enabled),
+        url: monitorPatch.url === undefined ? this.settings.monitor.url : String(monitorPatch.url || '').trim(),
+        username: monitorPatch.username === undefined ? this.settings.monitor.username : String(monitorPatch.username || '').trim(),
+        password: monitorPatch.password === undefined ? this.settings.monitor.password : String(monitorPatch.password || ''),
+      },
     };
-    await this.#writeFileAtomic(this.paths.settings, `${JSON.stringify(this.settings, null, 2)}\n`);
+    await this.#writeFileAtomic(this.paths.settings, `${JSON.stringify(this.settings, null, 2)}\n`, 0o600);
     return this.settings;
   }
 

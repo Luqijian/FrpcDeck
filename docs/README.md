@@ -25,6 +25,7 @@ FrpcDeck 是 frp 客户端 **frpc** 的可视化配置与运行管理面板。�
 ## 快速导航
 
 - 第一次使用：先读[部署指南](deployment.md)，再在面板中完成「连接配置 → 代理 → 应用更改」。
+- 想看流量、连接速度和代理流量：读[配置说明](configuration.md)的「流量监控」，并在设置中接入 frps Dashboard。
 - 想确认 frpc 的某个字段在哪里填写：读[配置说明](configuration.md)。
 - 想二次开发或接入自动化：读[架构设计](architecture.md)和[HTTP API](api.md)。
 - 部署出问题：优先看[故障排查](troubleshooting.md)。

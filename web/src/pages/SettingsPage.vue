@@ -131,6 +131,51 @@
       </section>
     </div>
 
+    <section class="card settings-monitor-card">
+      <header class="card-head">
+        <div class="settings-card-title">
+          <span class="settings-icon tone-green"><Activity :size="17" /></span>
+          <div>
+            <h3 class="card-title">frps 流量监控</h3>
+            <p class="card-sub">读取 frps Dashboard 的代理流量与连接数，用于监控页面统计。</p>
+          </div>
+        </div>
+        <span v-if="store.monitor?.available" class="settings-badge tone-success">已连接</span>
+        <span v-else-if="store.monitor?.enabled" class="settings-badge">等待连接</span>
+      </header>
+
+      <div class="settings-monitor-body">
+        <div class="switch-row">
+          <div class="switch-copy">
+            <strong>启用 frps Dashboard 监控</strong>
+            <small>需要在 frps 配置中启用 webServer，并允许面板访问其端口。未启用时不影响 frpc 运行。</small>
+          </div>
+          <ToggleSwitch v-model="monitorForm.enabled" :disabled="savingMonitor" />
+        </div>
+        <div class="form-grid">
+          <FormField label="Dashboard 地址" hint="例如 http://192.168.1.2:7500；留空时使用 http://frps地址:7500。">
+            <input v-model="monitorForm.url" class="input input-mono" type="text" placeholder="http://frps.example.com:7500" />
+          </FormField>
+          <FormField label="Dashboard 用户名">
+            <input v-model="monitorForm.username" class="input" type="text" autocomplete="off" placeholder="可留空" />
+          </FormField>
+          <FormField label="Dashboard 密码">
+            <input v-model="monitorForm.password" class="input" type="password" autocomplete="new-password" placeholder="可留空" />
+          </FormField>
+        </div>
+        <div class="settings-form-actions">
+          <span v-if="monitorError" class="text-danger">{{ monitorError }}</span>
+          <span v-else-if="store.monitor?.error" class="text-warning">{{ store.monitor.error }}</span>
+          <span v-else class="monitor-hint">{{ store.monitor?.sampledAt ? `最近采样 ${timeAgo(store.monitor.sampledAt)}` : '启用后将每 15 秒采样一次' }}</span>
+          <button type="button" class="btn btn-secondary btn-sm" :disabled="savingMonitor" @click="saveMonitor">
+            <Loader2 v-if="savingMonitor" :size="14" class="spin" />
+            <Activity v-else :size="14" />
+            保存监控设置
+          </button>
+        </div>
+      </div>
+    </section>
+
     <section class="card settings-card settings-backup-card">
       <header class="card-head">
         <div class="settings-card-title">
@@ -311,6 +356,7 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import {
+  Activity,
   AppWindow,
   Check,
   ChevronRight,
@@ -344,12 +390,22 @@ import {
   saveSettings,
   setEditorLayout,
   store,
+  timeAgo,
   toast,
+  refreshMonitor,
 } from '@/store';
 import { jsonClone } from '@/frp';
 
 const router = useRouter();
 const passwordForm = reactive({ username: store.auth.username || 'admin', current: '', next: '', confirm: '' });
+const monitorForm = reactive({
+  enabled: Boolean(store.settings.monitor?.enabled),
+  url: store.settings.monitor?.url || '',
+  username: store.settings.monitor?.username || '',
+  password: store.settings.monitor?.password || '',
+});
+const monitorError = ref('');
+const savingMonitor = ref(false);
 const passwordError = ref('');
 const changingPassword = ref(false);
 const savingSettings = ref(false);
@@ -377,6 +433,29 @@ async function updateSetting(key, value) {
     toast(error.message || '保存失败', 'error');
   } finally {
     savingSettings.value = false;
+  }
+}
+
+async function saveMonitor() {
+  if (savingMonitor.value) return;
+  monitorError.value = '';
+  savingMonitor.value = true;
+  try {
+    await saveSettings({
+      monitor: {
+        enabled: monitorForm.enabled,
+        url: monitorForm.url.trim(),
+        username: monitorForm.username.trim(),
+        password: monitorForm.password,
+      },
+    });
+    toast('监控设置已保存', 'success');
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    await refreshMonitor();
+  } catch (error) {
+    monitorError.value = error.message || '保存监控设置失败';
+  } finally {
+    savingMonitor.value = false;
   }
 }
 

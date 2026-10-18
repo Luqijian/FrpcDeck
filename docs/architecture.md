@@ -28,7 +28,8 @@ flowchart LR
 | --- | --- |
 | `server/index.js` | 环境变量、Fastify 启动、静态资源、安全头、优雅退出 |
 | `server/routes.js` | 认证、实例、配置、运行控制、SSE、日志、设置、备份等 HTTP API |
-| `server/instances.js` | 多实例管理器、实例目录迁移、独立 Store / FrpcManager、自动启动 |
+| `server/instances.js` | 多实例管理器、实例目录迁移、独立 Store / FrpcManager / FrpsMonitor、自动启动 |
+| `server/monitor.js` | 可选 frps Dashboard 流量采样、速率计算、历史快照 |
 | `server/frpc.js` | frpc 子进程生命周期、stdout/stderr 捕获、日志跟随、状态轮询、自动重启 |
 | `server/config.js` | 默认值、规范化、字段校验、TOML 生成、TOML/YAML/JSON/INI 导入 |
 | `server/toml.js` | 无第三方依赖的 TOML 序列化器 |

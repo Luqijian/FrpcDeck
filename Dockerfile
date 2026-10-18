@@ -30,7 +30,7 @@ LABEL org.opencontainers.image.title="FrpcDeck" \
       org.opencontainers.image.source="https://github.com/Luqijian/FrpcDeck" \
       org.opencontainers.image.documentation="https://github.com/Luqijian/FrpcDeck#readme" \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.version="3.1.1"
+      org.opencontainers.image.version="3.2.0"
 
 RUN apk add --no-cache ca-certificates tzdata curl su-exec \
   && case "${TARGETARCH}" in \

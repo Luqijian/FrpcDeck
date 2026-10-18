@@ -37,6 +37,7 @@ FrpcDeck 不是 frps 服务端面板。它管理运行在内网一侧的 **frpc*
 - **批量端口**：兼容 `parseNumberRangePair` 端口范围写法；导入、新建、编辑和导出都在同一套结构化界面中完成，列表中一个批次只占一条代理。
 - **原生校验**：应用前执行 `frpc verify`，避免把无法启动的配置写入运行文件。
 - **实时状态**：读取 frpc 管理接口，展示连接、代理状态、PID、版本、运行时长和实际远程端口。
+- **流量监控**：可选接入 frps Dashboard，统计今日入站/出站、实时速率、活跃连接和每个代理的流量，低频率采样并缓存。
 - **实时日志**：SSE 日志流、级别过滤、搜索、暂停、复制、下载；支持跟随文件日志。
 - **移动端友好**：抽屉表单、底部导航和悬浮保存栏，手机也能完成全部配置。
 - **安全**：scrypt 密码哈希、签名 HttpOnly Cookie、登录限流、CSRF 校验、CSP、敏感文件 0600。
@@ -57,6 +58,10 @@ FrpcDeck 不是 frps 服务端面板。它管理运行在内网一侧的 **frpc*
 | 实例管理 | 内置文档中心 |
 | --- | --- |
 | ![实例](docs/screenshots/instances.png) | ![文档](docs/screenshots/docs.png) |
+
+| 流量监控 | 监控设置 |
+| --- | --- |
+| ![监控](docs/screenshots/monitor.png) | ![监控设置](docs/screenshots/monitor-settings.png) |
 
 ## 快速开始
 

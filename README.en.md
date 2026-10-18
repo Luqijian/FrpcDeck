@@ -37,6 +37,7 @@ One container includes the web UI, a Node service and frpc. No host Node.js inst
 - **Batch ports**: accepts `parseNumberRangePair` ranges with import, creation, editing and export in one structured UI; each batch appears as a single proxy row.
 - **Native validation**: runs `frpc verify` before writing or applying a configuration.
 - **Live runtime**: proxy status, connection state, PID, frpc version, uptime and assigned remote ports from frpc's admin API.
+- **Traffic monitoring**: optional frps Dashboard integration for daily ingress/egress, live throughput, active connections and per-proxy traffic, with low-frequency cached sampling.
 - **Streaming logs**: SSE log stream, level filters, search, pause, copy, download, file-log tailing.
 - **Mobile first**: bottom navigation, bottom-sheet editors and a floating apply bar; all screens work at 320 px wide.
 - **Security**: scrypt password hashing, signed HttpOnly cookies, login rate limiting, CSRF checks, CSP and 0600 sensitive files.
@@ -55,6 +56,10 @@ One container includes the web UI, a Node service and frpc. No host Node.js inst
 | Instances | Built-in docs |
 | --- | --- |
 | ![Instances](docs/screenshots/instances.png) | ![Docs](docs/screenshots/docs.png) |
+
+| Traffic monitoring | Monitor settings |
+| --- | --- |
+| ![Monitoring](docs/screenshots/monitor.png) | ![Monitor settings](docs/screenshots/monitor-settings.png) |
 
 ## Quick start
 
