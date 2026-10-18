@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Nothing yet.
 
+## [2.1.1] - 2026-10-18
+
+### Fixed
+
+- Constrained the login layout to a centered 1360 px canvas on very wide / high-DPI screens. The brand column and login card no longer sit at opposite edges of the viewport; the two-column composition keeps a consistent gap and balanced side margins.
+
 ## [2.1.0] - 2026-10-18
 
 ### Added
@@ -133,7 +139,8 @@ Initial public release.
 - Sensitive configuration files are written with mode `0600`; the data directory uses `0700`.
 - The frpc admin API is bound to `127.0.0.1` by default.
 
-[Unreleased]: https://github.com/Luqijian/FrpcDeck/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/Luqijian/FrpcDeck/compare/v2.1.1...HEAD
+[2.1.1]: https://github.com/Luqijian/FrpcDeck/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/Luqijian/FrpcDeck/compare/v2.0.2...v2.1.0
 [2.0.2]: https://github.com/Luqijian/FrpcDeck/compare/v2.0.1...v2.0.2
 [2.0.1]: https://github.com/Luqijian/FrpcDeck/compare/v2.0.0...v2.0.1

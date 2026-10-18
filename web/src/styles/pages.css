@@ -4,6 +4,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1.14fr) minmax(420px, 0.86fr);
   min-height: 100dvh;
+  padding-inline: max(0px, calc((100vw - 1360px) / 2));
   overflow: hidden;
   background-color: var(--bg);
   background-image: radial-gradient(760px 600px at 8% -5%, var(--glow-a), transparent 65%),
