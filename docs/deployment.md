@@ -18,7 +18,7 @@ FrpcDeck 提供 GHCR 公开镜像，支持 `linux/amd64` 和 `linux/arm64`：
 
 ```text
 ghcr.io/luqijian/frpcdeck:latest
-ghcr.io/luqijian/frpcdeck:1.1.1
+ghcr.io/luqijian/frpcdeck:1.2.0
 ```
 
 镜像页面：<https://github.com/Luqijian/FrpcDeck/pkgs/container/frpcdeck>
@@ -56,7 +56,7 @@ docker run -d \
   ghcr.io/luqijian/frpcdeck:latest
 ```
 
-> 使用预构建镜像时，`IMAGE_TAG` 控制 Compose 拉取的标签；`latest` 跟随主分支，生产环境建议固定为 `1.1.1`。
+> 使用预构建镜像时，`IMAGE_TAG` 控制 Compose 拉取的标签；`latest` 跟随主分支，生产环境建议固定为 `1.2.0`。
 
 ## 快速开始（bridge 网络）
 
@@ -66,7 +66,7 @@ cd FrpcDeck
 
 cp .env.example .env
 # 编辑 .env，至少修改 FRPC_WEBUI_PASSWORD
-# 可选：IMAGE_TAG=1.1.1
+# 可选：IMAGE_TAG=1.2.0
 
 docker compose pull
 docker compose up -d
@@ -142,7 +142,7 @@ docker compose up -d
 | --- | --- | --- |
 | `FRPC_WEBUI_PASSWORD` | 无 | 管理员密码。设置后由环境变量托管，面板内不能修改；每次启动同步。未设置时首次访问进入初始化向导。 |
 | `FRPC_WEBUI_USERNAME` | `admin` | 管理员用户名。 |
-| `IMAGE_TAG` | `latest` | Compose 使用的 GHCR 镜像标签，例如 `1.1.1`。 |
+| `IMAGE_TAG` | `latest` | Compose 使用的 GHCR 镜像标签，例如 `1.2.0`。 |
 | `PORT` | `8080` | 面板监听端口（容器内）。 |
 | `HOST` | `0.0.0.0` | 面板监听地址。 |
 | `DATA_DIR` | `/data`（镜像内） | 配置、认证、备份、会话密钥的持久化目录。 |
@@ -196,7 +196,7 @@ docker compose pull
 docker compose up -d
 ```
 
-升级到固定版本：在 `.env` 中设置 `IMAGE_TAG=1.1.1`（或新版本号），然后重新执行上面的命令。
+升级到固定版本：在 `.env` 中设置 `IMAGE_TAG=1.2.0`（或新版本号），然后重新执行上面的命令。
 
 - 数据在 `./data`，重建容器不会丢失。
 - 迁移服务器时，把整个 `data/` 目录复制到新服务器即可（注意权限 0600）。

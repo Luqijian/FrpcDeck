@@ -4,6 +4,9 @@ import {
   VISITOR_PLUGIN_TYPES,
   VISITOR_TYPES,
 } from '@shared/constants.js';
+import { batchPortCount, batchProxyNames, parsePortPairs } from '@shared/ports.js';
+
+export { batchPortCount, batchProxyNames, parsePortPairs };
 
 export const TYPE_META = {
   tcp: {
@@ -198,6 +201,7 @@ export function createProxy(type = 'tcp', name = '') {
     metadatas: {},
     annotations: {},
     natTraversal: { disableAssistedAddrs: false },
+    batch: null,
   };
 }
 
@@ -229,11 +233,13 @@ export function nextName(items, base, excludeName = '') {
 
 export function proxyLocal(proxy) {
   if (proxy.plugin?.type) return PLUGIN_META[proxy.plugin.type]?.label || proxy.plugin.type;
+  if (proxy.batch) return `${proxy.localIP || '127.0.0.1'}:${proxy.batch.localPorts}`;
   return `${proxy.localIP || '127.0.0.1'}:${proxy.localPort || '—'}`;
 }
 
 export function proxyEndpoint(proxy, serverAddr = '') {
   if (proxy.plugin?.type) return PLUGIN_META[proxy.plugin.type]?.label || proxy.plugin.type;
+  if (proxy.batch) return `${serverAddr || 'frps'}:${proxy.batch.remotePorts}`;
   if (['tcp', 'udp'].includes(proxy.type)) {
     if (proxy.remotePort === 0) return '随机端口';
     return proxy.remotePort ? `${serverAddr || 'frps'}:${proxy.remotePort}` : '未设置远程端口';
@@ -268,44 +274,24 @@ export function runtimeProxyMap(runtimeProxies = []) {
   return map;
 }
 
-function splitHostPort(value) {
-  const text = String(value || '');
-  if (!text) return { host: '', port: undefined };
-  if (text.startsWith('[')) {
-    const end = text.indexOf(']');
-    if (end > 0) {
-      const host = text.slice(1, end);
-      const port = text.slice(end + 1).replace(/^:/, '');
-      return { host, port: port ? Number(port) : undefined };
-    }
+export function batchRuntimeStatus(proxy, runtimeMap) {
+  let names;
+  try {
+    names = batchProxyNames(proxy);
+  } catch {
+    return 'error';
   }
-  const index = text.lastIndexOf(':');
-  if (index < 0) return { host: text, port: undefined };
-  return {
-    host: text.slice(0, index),
-    port: Number(text.slice(index + 1)) || undefined,
-  };
-}
-
-export function runtimeProxyToDisplay(proxy = {}) {
-  const local = splitHostPort(proxy.local_addr);
-  const remote = splitHostPort(proxy.remote_addr);
-  return {
-    ...proxy,
-    name: proxy.name || '',
-    type: proxy.type || 'tcp',
-    enabled: proxy.status !== 'disabled',
-    localIP: local.host,
-    localPort: local.port,
-    remotePort: remote.port,
-    remoteAddr: proxy.remote_addr || '',
-    customDomains: Array.isArray(proxy.custom_domains) ? proxy.custom_domains : [],
-    _runtime: true,
-  };
+  if (!names.length) return 'pending';
+  const live = names.map((name) => runtimeMap.get(name));
+  if (live.some((item) => item?.status === 'start error')) return 'error';
+  if (live.every((item) => item?.status === 'running')) return 'running';
+  if (live.some((item) => item)) return 'waiting';
+  return 'pending';
 }
 
 export function proxyRuntimeStatus(proxy, runtimeMap) {
   if (!proxy.enabled) return 'disabled';
+  if (proxy.batch) return batchRuntimeStatus(proxy, runtimeMap);
   const live = runtimeMap.get(proxy.name);
   if (!live) return 'pending';
   return live.status || 'pending';

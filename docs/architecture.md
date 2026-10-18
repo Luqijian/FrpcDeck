@@ -73,7 +73,7 @@ flowchart LR
 
 ```text
 /data/
-├─ config.json          # 面板内部配置模型（含未知字段；模板模式含 rawTemplate）
+├─ config.json          # 面板内部配置模型（含未知字段与批量代理）
 ├─ frpc.toml            # 生成的运行配置，0600
 ├─ settings.json        # autoStart / autoRestart
 ├─ auth.json            # scrypt 盐、哈希、版本、来源
@@ -101,16 +101,27 @@ stopped ──start──▶ starting ──spawn──▶ running
 - 停止时先 SIGTERM，5 秒未退出则 SIGKILL。
 - 面板会检测 `start proxy success` 并主动刷新状态。
 
-## 模板模式
+## 批量端口模型
 
-含 Go template 的配置不走结构化解析：
+批量端口不是独立模式，而是代理模型上的可选字段：
 
-- `parseConfigText` 检测到模板动作且 TOML 解析失败时，生成 `{ rawTemplate }` 模型；
-- `rawTemplate` 原样存入 `config.json` 和备份，`generateToml` 直接返回模板文本；
-- 模板没有 `[webServer]` 时，`generateToml` 仅在输出时追加管理接口块，不修改原文；
-- `validateConfig` 跳过结构化字段校验，最终由 `frpc verify` 渲染并验证；
-- 应用时仍然写入 `data/frpc.toml`、重启 frpc；运行状态来自 frpc 管理 API；
-- 前端隐藏结构化表单，代理页使用运行时状态展示模板生成的只读代理。
+```json
+{
+  "name": "Sunshine-TCP",
+  "type": "tcp",
+  "batch": {
+    "localPorts": "47984-47990,48010",
+    "remotePorts": "47984-47990,48010",
+    "namePattern": "Sunshine-TCP-{localPort}"
+  }
+}
+```
+
+- `parseConfigText` 先尝试普通 TOML；失败且存在 `parseNumberRangePair` 时，提取每个 range 块，按采样端口解析出普通代理字段，再写入 `batch`；
+- `shared/ports.js` 负责端口范围展开、配对校验和名称模板求值，前后端共用；
+- `generateToml` 对普通代理输出 `[[proxies]]`，对批量代理输出一个 `{{- range ... }}` 块；
+- 每条批量代理仍是一个 UI 条目；运行时按名称模板生成名称，前端用生成名称集合聚合运行状态；
+- 管理接口仍是普通 `webServer` 字段，不依赖模板注入。
 
 ## 安全模型
 
@@ -125,9 +136,9 @@ stopped ──start──▶ starting ──spawn──▶ running
 
 ## 测试分层
 
-- `tests/config.test.js`：TOML 生成、官方完整示例往返、Go template 保留与 `[webServer]` 注入、校验、导入。
-- `tests/store.test.js`：首次导入、模板首次导入、损坏恢复、备份、原子写入。
-- `tests/api.test.js`：启动真实服务进程，覆盖认证、CSRF、配置、模板导入、备份、SSE、改密、重置。
+- `tests/config.test.js`：TOML 生成、官方完整示例往返、批量端口解析/校验/导出。
+- `tests/store.test.js`：首次导入、批量端口首次导入、损坏恢复、备份、原子写入。
+- `tests/api.test.js`：启动真实服务进程，覆盖认证、CSRF、配置、批量端口导入、备份、SSE、改密、重置。
 - `tests/e2e.mjs`：浏览器冒烟测试（Playwright + 系统 Chrome）。
 - 手工验证：真实 frps/frpc 下的 TCP、HTTP、STCP、UDP、访问器、文件日志跟随。
 
@@ -137,5 +148,5 @@ stopped ──start──▶ starting ──spawn──▶ running
 - **两阶段校验**：结构化校验给用户友好提示，frpc 原生校验兜底真实兼容性。
 - **面板保留管理接口**：为实时状态提供稳定入口，牺牲“完全关闭”这个自由度。
 - **导入保留未知字段**：便于跟随 frp 新版本，不强迫用户等待 UI 更新。
-- **模板模式保留原文**：Go template 由 frpc 执行，面板不实现模板引擎，避免语义偏差；代价是模板生成的代理由运行时只读展示。
+- **批量端口可视化**：把端口范围作为代理字段而不是原始模板保存，保证导入、新建、编辑和导出使用同一套模型；导出时再生成 frp 的 `parseNumberRangePair` 块。
 - **重启而非热加载**：实现简单、行为可预测；配置变更频率低，重启耗时通常小于 1 秒。

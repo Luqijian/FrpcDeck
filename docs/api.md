@@ -64,8 +64,8 @@ FrpcDeck 的所有接口都在 `/api` 下。除健康检查、登录、初始化
 | GET | `/api/config/toml` | 返回 `text/plain` 的运行配置 |
 | GET | `/api/config/download?format=toml\|json` | 下载配置 |
 | POST | `/api/config/validate` | 校验草稿，返回 issues / TOML / verify 结果 |
-| POST | `/api/config/import` | 解析 TOML/YAML/JSON/INI；检测到 Go template 时返回模板模式 |
-| PUT | `/api/config/raw` | 直接应用 TOML 或 Go template 文本 |
+| POST | `/api/config/import` | 解析 TOML/YAML/JSON/INI；`parseNumberRangePair` 转为批量代理 |
+| PUT | `/api/config/raw` | 直接应用 TOML（可包含批量端口模板） |
 | POST | `/api/config/reset` | 重置配置，body 必须 `{"confirm":"RESET"}` |
 
 `PUT /api/config` 的返回：
@@ -92,23 +92,33 @@ FrpcDeck 的所有接口都在 `/api` 下。除健康检查、登录、初始化
 }
 ```
 
-如果文件包含 frp Go template（例如 `range` + `parseNumberRangePair`）且无法按普通 TOML 解析，返回：
+如果文件包含 `parseNumberRangePair` 端口范围，每个 range 块会变成一个批量代理；普通 `[[proxies]]` 仍然是单条代理：
 
 ```json
 {
-  "format": "template",
+  "format": "toml",
   "config": {
-    "rawTemplate": "{{- range ... }}\n..."
+    "proxies": [
+      {
+        "name": "Sunshine-TCP",
+        "type": "tcp",
+        "localIP": "192.168.50.152",
+        "batch": {
+          "localPorts": "47984-47990,48010",
+          "remotePorts": "47984-47990,48010",
+          "namePattern": "Sunshine-TCP-{localPort}"
+        }
+      }
+    ]
   },
-  "warnings": ["检测到 Go 模板语法，已启用模板模式；模板会原样保留，不会展开。"],
-  "issues": [{"level": "warning", "message": "模板模式：..."}],
-  "toml": "{{- range ... }}\n...\n[webServer]\n..."
+  "warnings": ["已识别 1 个批量端口配置，将作为单个代理展示"],
+  "toml": "{{- range $_, $v := parseNumberRangePair \"47984-47990,48010\" \"47984-47990,48010\" }}\n..."
 }
 ```
 
-`config.rawTemplate` 保存原始模板；`toml` 是应用时实际写入的内容，如果模板没有声明 `[webServer]`，会包含自动追加的管理接口。模板模式不会展开代理，代理数量只能从 `/api/runtime` 获取。
+批量代理使用 `batch.localPorts`、`batch.remotePorts` 和 `batch.namePattern` 描述；`namePattern` 支持 `{localPort}` / `{remotePort}`。`PUT /api/config` 直接提交同样的对象即可保存和导出。代理数量按可视化条目计算，一个批量条目只占一个。
 
-`PUT /api/config` 可以直接提交带 `rawTemplate` 的 config 对象；普通结构化配置继续使用 `proxies` / `visitors` 字段。
+普通代理和批量代理共用 `proxies` 数组；`/api/runtime` 返回的是 frpc 实际展开后的运行时代理，前端会按名称模板聚合批量状态。
 
 ### 运行状态
 

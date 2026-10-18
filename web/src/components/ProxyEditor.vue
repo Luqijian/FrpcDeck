@@ -84,7 +84,14 @@
         title="本地服务"
         description="frpc 将连接这个内网地址，并把流量转发出去。"
       >
-        <div class="preset-row">
+        <div v-if="['tcp', 'udp'].includes(form.type)" class="switch-row batch-switch-row">
+          <div class="switch-copy">
+            <strong>批量端口</strong>
+            <small>用一段端口范围生成多个 TCP/UDP 代理；列表中仍只显示为一条代理。</small>
+          </div>
+          <ToggleSwitch v-model="batchEnabled" />
+        </div>
+        <div v-if="!batchEnabled" class="preset-row">
           <button
             v-for="preset in localPresets"
             :key="preset.label"
@@ -97,7 +104,7 @@
             <span>{{ preset.port }}</span>
           </button>
         </div>
-        <div class="form-grid">
+        <div v-if="!batchEnabled" class="form-grid">
           <FormField label="本地地址" required :error="attempted ? errors.localIP : ''">
             <input v-model="form.localIP" class="input input-mono" type="text" placeholder="127.0.0.1" />
           </FormField>
@@ -114,7 +121,26 @@
             <input v-model.number="form.remotePort" class="input input-mono" type="number" min="0" max="65535" placeholder="6001" />
           </FormField>
         </div>
-        <p v-if="['tcp', 'udp'].includes(form.type)" class="form-note">
+        <div v-else class="form-grid batch-grid">
+          <FormField label="本地地址" required :error="attempted ? errors.localIP : ''">
+            <input v-model="form.localIP" class="input input-mono" type="text" placeholder="127.0.0.1" />
+          </FormField>
+          <FormField label="本地端口范围" required :error="attempted ? errors.batch : ''" hint="例如 8000-8010,8020。">
+            <input v-model="form.batch.localPorts" class="input input-mono" type="text" placeholder="8000-8010,8020" />
+          </FormField>
+          <FormField label="远程端口范围" required :error="attempted ? errors.batch : ''" hint="数量必须与本地端口一致。">
+            <input v-model="form.batch.remotePorts" class="input input-mono" type="text" placeholder="8000-8010,8020" />
+          </FormField>
+          <FormField label="名称模板" required :error="attempted ? errors.batchName : ''" hint="支持 {localPort} 和 {remotePort}。">
+            <input v-model="form.batch.namePattern" class="input input-mono" type="text" placeholder="my-service-{localPort}" />
+          </FormField>
+        </div>
+        <div v-if="batchEnabled" class="batch-preview">
+          <Info :size="14" />
+          <span v-if="batchInfo.error" class="text-warning">{{ batchInfo.error }}</span>
+          <span v-else>{{ batchInfo.count }} 个代理 · {{ batchInfo.first }} … {{ batchInfo.last }}</span>
+        </div>
+        <p v-if="['tcp', 'udp'].includes(form.type) && !batchEnabled" class="form-note">
           <Info :size="14" />
           确保 frps 所在服务器的防火墙与云安全组已放行远程端口。
         </p>
@@ -429,6 +455,7 @@ import {
   proxyLocal,
 } from '@/frp';
 import { PLUGIN_REQUIRED_FIELDS, PROXY_PLUGIN_TYPES } from '@shared/constants.js';
+import { batchPortCount, parsePortPairs } from '@shared/ports.js';
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -464,12 +491,57 @@ const pluginEnabled = computed({
   set: (enabled) => {
     if (!form.value) return;
     if (enabled) {
+      form.value.batch = null;
       const type = form.value.plugin?.type || 'unix_domain_socket';
       form.value.plugin = pluginDefaults(type);
     } else {
       form.value.plugin = { type: '' };
     }
   },
+});
+
+const batchEnabled = computed({
+  get: () => Boolean(form.value?.batch),
+  set: (enabled) => {
+    if (!form.value) return;
+    if (enabled) {
+      const localPort = form.value.localPort;
+      const remotePort = form.value.remotePort;
+      form.value.batch = {
+        localPorts: localPort === undefined || localPort === '' ? '' : String(localPort),
+        remotePorts: remotePort === undefined || remotePort === '' ? '' : String(remotePort),
+        namePattern: `${form.value.name || 'batch'}-{localPort}`,
+      };
+      form.value.localPort = undefined;
+      form.value.remotePort = undefined;
+    } else {
+      const batch = form.value.batch;
+      try {
+        const pair = parsePortPairs(batch.localPorts, batch.remotePorts)[0];
+        if (pair) {
+          form.value.localPort = pair.localPort;
+          form.value.remotePort = pair.remotePort;
+        }
+      } catch {
+        // Keep the ports empty; the normal form will ask for them again.
+      }
+      form.value.batch = null;
+    }
+  },
+});
+
+const batchInfo = computed(() => {
+  if (!form.value?.batch) return { count: 0 };
+  try {
+    const pairs = parsePortPairs(form.value.batch.localPorts, form.value.batch.remotePorts);
+    return {
+      count: pairs.length,
+      first: pairs[0]?.localPort,
+      last: pairs[pairs.length - 1]?.localPort,
+    };
+  } catch (error) {
+    return { count: batchPortCount(form.value), error: error.message };
+  }
 });
 
 const pluginFields = computed(() => {
@@ -506,9 +578,11 @@ const errors = computed(() => {
 
   if (!form.value.plugin?.type) {
     if (!String(form.value.localIP || '').trim()) result.localIP = '请填写本地地址';
-    const port = Number(form.value.localPort);
-    if (!form.value.localPort && form.value.localPort !== 0) result.localPort = '请填写本地端口';
-    else if (!Number.isInteger(port) || port < 1 || port > 65535) result.localPort = '端口必须在 1–65535 之间';
+    if (!form.value.batch) {
+      const port = Number(form.value.localPort);
+      if (!form.value.localPort && form.value.localPort !== 0) result.localPort = '请填写本地端口';
+      else if (!Number.isInteger(port) || port < 1 || port > 65535) result.localPort = '端口必须在 1–65535 之间';
+    }
   } else {
     for (const field of PLUGIN_REQUIRED_FIELDS[form.value.plugin.type] || []) {
       if (!String(form.value.plugin[field] || '').trim()) {
@@ -517,7 +591,19 @@ const errors = computed(() => {
     }
   }
 
-  if (['tcp', 'udp'].includes(form.value.type)) {
+  if (form.value.batch) {
+    const batch = form.value.batch;
+    if (!String(batch.namePattern || '').trim()) {
+      result.batchName = '请填写名称模板';
+    } else if (!/\{(?:localPort|remotePort)\}/.test(batch.namePattern)) {
+      result.batchName = '名称模板必须包含 {localPort} 或 {remotePort}';
+    }
+    try {
+      parsePortPairs(batch.localPorts, batch.remotePorts);
+    } catch (error) {
+      result.batch = error.message;
+    }
+  } else if (['tcp', 'udp'].includes(form.value.type)) {
     if (form.value.remotePort === '' || form.value.remotePort === undefined || form.value.remotePort === null) {
       result.remotePort = '请填写远程端口（可为 0）';
     } else if (!Number.isInteger(Number(form.value.remotePort)) || Number(form.value.remotePort) < 0 || Number(form.value.remotePort) > 65535) {
@@ -553,6 +639,7 @@ function ensureFormShape(proxy) {
   if (!proxy.metadatas) proxy.metadatas = {};
   if (!proxy.annotations) proxy.annotations = {};
   if (!proxy.natTraversal) proxy.natTraversal = { disableAssistedAddrs: false };
+  if (!proxy.batch) proxy.batch = null;
   if (!proxy.requestHeaders) proxy.requestHeaders = { set: {} };
   if (!proxy.requestHeaders.set) proxy.requestHeaders.set = {};
   if (!proxy.responseHeaders) proxy.responseHeaders = { set: {} };
@@ -584,6 +671,7 @@ function applyPreset(preset) {
 function chooseType(type) {
   if (!form.value || form.value.type === type) return;
   form.value.type = type;
+  if (!['tcp', 'udp'].includes(type)) form.value.batch = null;
   if (type === 'tcpmux' && !form.value.multiplexer) form.value.multiplexer = 'httpconnect';
   if (isNew.value && autoName.value) form.value.name = uniqueName(type);
 }
@@ -608,8 +696,17 @@ async function save(apply) {
   }
   const payload = jsonClone(form.value);
   payload.name = String(payload.name || '').trim();
-  payload.localPort = toPort(payload.localPort);
-  payload.remotePort = toPort(payload.remotePort);
+  if (payload.batch) {
+    payload.batch.localPorts = String(payload.batch.localPorts || '').trim();
+    payload.batch.remotePorts = String(payload.batch.remotePorts || '').trim();
+    payload.batch.namePattern = String(payload.batch.namePattern || '').trim();
+    payload.localPort = undefined;
+    payload.remotePort = undefined;
+  } else {
+    payload.batch = null;
+    payload.localPort = toPort(payload.localPort);
+    payload.remotePort = toPort(payload.remotePort);
+  }
   payload.healthCheck.intervalSeconds = toPort(payload.healthCheck.intervalSeconds);
   payload.healthCheck.timeoutSeconds = toPort(payload.healthCheck.timeoutSeconds);
   payload.healthCheck.maxFailed = toPort(payload.healthCheck.maxFailed);

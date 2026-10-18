@@ -17,18 +17,10 @@ import {
   VISITOR_TYPES,
   WIRE_PROTOCOLS,
 } from '../shared/constants.js';
+import { batchPatternName, batchProxyNames, parsePortPairs } from '../shared/ports.js';
 import { stringifyToml } from './toml.js';
 
 const CONFIG_FORMAT_VERSION = 1;
-
-// frp renders config files as Go templates before parsing TOML (v0.56+).
-// Keep these documents verbatim so loops/functions stay under the user's control.
-const GO_TEMPLATE_ACTION = /\{\{[-]?\s*(?:\/\*|range\b|if\b|with\b|define\b|template\b|block\b|end\b|else\b|\.|\$|[A-Za-z_])/;
-const TEMPLATE_WEBSERVER = /^\s*(?:\[webServer\]|webServer\s*=|webServer\.)/m;
-
-export function isTemplateConfig(text) {
-  return typeof text === 'string' && GO_TEMPLATE_ACTION.test(text);
-}
 
 const DEFAULT_LOG = {
   to: 'console',
@@ -128,6 +120,7 @@ const DEFAULT_PROXY = {
   metadatas: {},
   annotations: {},
   natTraversal: { disableAssistedAddrs: false },
+  batch: null,
 };
 
 const DEFAULT_VISITOR = {
@@ -208,6 +201,7 @@ function normalizeProxy(input) {
   const healthCheck = { ...DEFAULT_PROXY.healthCheck, ...asObject(source.healthCheck) };
   const plugin = { ...DEFAULT_PROXY.plugin, ...asObject(source.plugin) };
   const natTraversal = { ...DEFAULT_PROXY.natTraversal, ...asObject(source.natTraversal) };
+  const batchSource = isPlainObject(source.batch) ? source.batch : null;
 
   return {
     ...source,
@@ -215,8 +209,8 @@ function normalizeProxy(input) {
     type: str(source.type, 'tcp'),
     enabled: bool(source.enabled, true),
     localIP: str(source.localIP, '127.0.0.1'),
-    localPort: intValue(source.localPort),
-    remotePort: intValue(source.remotePort),
+    localPort: batchSource ? undefined : intValue(source.localPort),
+    remotePort: batchSource ? undefined : intValue(source.remotePort),
     subdomain: str(source.subdomain),
     customDomains: stringArray(source.customDomains),
     locations: stringArray(source.locations),
@@ -258,6 +252,13 @@ function normalizeProxy(input) {
       ...natTraversal,
       disableAssistedAddrs: bool(natTraversal.disableAssistedAddrs, false),
     },
+    batch: batchSource
+      ? {
+          localPorts: str(batchSource.localPorts).trim(),
+          remotePorts: str(batchSource.remotePorts).trim(),
+          namePattern: str(batchSource.namePattern, `${str(source.name)}-{localPort}`).trim(),
+        }
+      : null,
   };
 }
 
@@ -300,7 +301,6 @@ export function normalizeConfig(input) {
 
   const config = {
     ...source,
-    rawTemplate: str(source.rawTemplate),
     clientID: str(source.clientID),
     user: str(source.user),
     serverAddr: str(source.serverAddr).trim(),
@@ -529,40 +529,52 @@ const TOML_COMMENTS = {
 };
 
 export function generateToml(input) {
-  const rawTemplate = str(input?.rawTemplate);
-  if (rawTemplate.trim()) {
-    return templateToToml(rawTemplate, normalizeConfig(input));
+  const config = normalizeConfig(input);
+  const base = stringifyToml(
+    compactConfig({ ...config, proxies: [], visitors: [] }),
+    { header: TOML_HEADER, comments: TOML_COMMENTS },
+  ).trimEnd();
+  const blocks = [];
+  for (const proxy of config.proxies) {
+    if (proxy.batch) blocks.push(renderBatchBlock(proxy));
+    else blocks.push(renderEntityBlock('proxies', proxy, '代理'));
   }
-  return stringifyToml(compactConfig(input), {
-    header: TOML_HEADER,
-    comments: TOML_COMMENTS,
-  });
+  for (const visitor of config.visitors) {
+    blocks.push(renderEntityBlock('visitors', visitor, '访问器（visitor）'));
+  }
+  return `${[base, ...blocks].filter(Boolean).join('\n\n')}\n`;
 }
 
-function templateToToml(rawTemplate, config) {
-  let text = rawTemplate.replace(/\r\n/g, '\n');
-  if (!TEMPLATE_WEBSERVER.test(text)) {
-    text = `${text.replace(/\s*$/, '')}\n\n${managedWebServerToml(config.webServer)}\n`;
-  } else if (!text.endsWith('\n')) {
-    text += '\n';
-  }
-  return text;
+function renderEntityBlock(key, entity, comment) {
+  return stringifyToml({ [key]: [compactObject(entity)] }, {
+    comments: { [key]: comment },
+  }).trim();
 }
 
-function managedWebServerToml(input) {
-  const webServer = { ...DEFAULT_WEBSERVER, ...asObject(input) };
-  const port = Number.isFinite(Number(webServer.port)) ? Math.trunc(Number(webServer.port)) : 7400;
-  const lines = [
-    '# FrpcDeck 管理接口（模板未声明 [webServer] 时自动追加）',
-    '[webServer]',
-    `addr = ${JSON.stringify(str(webServer.addr, '127.0.0.1') || '127.0.0.1')}`,
-    `port = ${port}`,
-    `user = ${JSON.stringify(str(webServer.user))}`,
-    `password = ${JSON.stringify(str(webServer.password))}`,
-  ];
-  if (str(webServer.assetsDir)) lines.push(`assetsDir = ${JSON.stringify(str(webServer.assetsDir))}`);
-  if (bool(webServer.pprofEnable, false)) lines.push('pprofEnable = true');
-  return lines.join('\n');
+function renderBatchBlock(proxy) {
+  const batch = proxy.batch;
+  const sample = {
+    ...compactObject(proxy),
+    name: '__FRPCDECK_BATCH_NAME__',
+    localPort: 60000,
+    remotePort: 60001,
+  };
+  delete sample.batch;
+  let block = renderEntityBlock('proxies', sample, '批量代理');
+  const goNamePattern = batch.namePattern
+    .replaceAll('{localPort}', '{{ $v.First }}')
+    .replaceAll('{remotePort}', '{{ $v.Second }}');
+  block = block.replace(
+    'name = "__FRPCDECK_BATCH_NAME__"',
+    `name = ${JSON.stringify(goNamePattern)}`,
+  );
+  block = block.replace(/^localPort = 60000$/m, 'localPort = {{ $v.First }}');
+  block = block.replace(/^remotePort = 60001$/m, 'remotePort = {{ $v.Second }}');
+  return [
+    `{{- range $_, $v := parseNumberRangePair ${JSON.stringify(batch.localPorts)} ${JSON.stringify(batch.remotePorts)} }}`,
+    block,
+    '{{- end }}',
+  ].join('\n');
 }
 
 function issue(path, message, level = 'error', label = '') {
@@ -612,21 +624,6 @@ function validateHeaders(issues, path, headers, label) {
 export function validateConfig(input) {
   const config = normalizeConfig(input);
   const issues = [];
-
-  if (config.rawTemplate.trim()) {
-    const hasWebServer = TEMPLATE_WEBSERVER.test(config.rawTemplate);
-    issues.push(
-      issue(
-        '',
-        hasWebServer
-          ? '模板模式：模板已声明 [webServer]，面板不会覆盖；请确认其地址和凭据与「管理接口」一致，否则实时状态可能不可用。'
-          : '模板模式：模板将原样保留，应用时会自动追加面板所需的 [webServer]，不会展开模板循环。',
-        'warning',
-        '模板',
-      ),
-    );
-    return issues;
-  }
 
   if (!config.serverAddr) {
     issues.push(issue('serverAddr', '请填写 frps 服务器地址', 'error', '服务器地址'));
@@ -736,6 +733,7 @@ export function validateConfig(input) {
   const proxyNames = new Set();
   config.proxies.forEach((proxy, index) => {
     const prefix = `proxies.${index}`;
+    const isBatch = Boolean(proxy.batch);
     if (!proxy.name) {
       issues.push(issue(`${prefix}.name`, `第 ${index + 1} 个代理缺少名称`, 'error', '代理名称'));
     } else if (proxyNames.has(proxy.name)) {
@@ -748,8 +746,14 @@ export function validateConfig(input) {
       issues.push(issue(`${prefix}.type`, `未知的代理类型：${proxy.type}`, 'error', '代理类型'));
       return;
     }
+    if (isBatch && !['tcp', 'udp'].includes(proxy.type)) {
+      issues.push(issue(`${prefix}.batch`, '批量端口仅支持 TCP / UDP 类型', 'error', '批量端口'));
+    }
 
     const hasPlugin = Boolean(proxy.plugin.type);
+    if (isBatch && hasPlugin) {
+      issues.push(issue(`${prefix}.plugin.type`, '批量端口暂不支持插件', 'error', '插件'));
+    }
     if (hasPlugin && !PROXY_PLUGIN_TYPES.includes(proxy.plugin.type)) {
       issues.push(issue(`${prefix}.plugin.type`, `未知的插件类型：${proxy.plugin.type}`, 'error', '插件类型'));
     }
@@ -763,10 +767,38 @@ export function validateConfig(input) {
       if (!proxy.localIP) {
         issues.push(issue(`${prefix}.localIP`, '本地服务地址不能为空', 'error', '本地地址'));
       }
-      checkPort(issues, `${prefix}.localPort`, '本地端口', proxy.localPort);
+      if (!isBatch) checkPort(issues, `${prefix}.localPort`, '本地端口', proxy.localPort);
     }
 
-    if (['tcp', 'udp'].includes(proxy.type)) {
+    if (isBatch) {
+      const batch = proxy.batch;
+      if (!batch.namePattern) {
+        issues.push(issue(`${prefix}.batch.namePattern`, '批量端口名称模板不能为空', 'error', '批量名称'));
+      } else if (!/\{(?:localPort|remotePort)\}/.test(batch.namePattern)) {
+        issues.push(issue(`${prefix}.batch.namePattern`, '批量端口名称模板必须包含 {localPort} 或 {remotePort}', 'error', '批量名称'));
+      }
+      try {
+        const names = batchProxyNames(proxy);
+        if (names.length === 0) {
+          issues.push(issue(`${prefix}.batch`, '批量端口范围不能为空', 'error', '批量端口'));
+        }
+        const localNames = new Set();
+        for (const name of names) {
+          if (localNames.has(name)) {
+            issues.push(issue(`${prefix}.batch.namePattern`, `批量名称 “${name}” 重复`, 'error', '批量名称'));
+            break;
+          }
+          localNames.add(name);
+          if (proxyNames.has(name)) {
+            issues.push(issue(`${prefix}.batch.namePattern`, `生成的代理名称 “${name}” 与其他代理重复`, 'error', '批量名称'));
+            break;
+          }
+          proxyNames.add(name);
+        }
+      } catch (error) {
+        issues.push(issue(`${prefix}.batch`, error.message, 'error', '批量端口'));
+      }
+    } else if (['tcp', 'udp'].includes(proxy.type)) {
       if (proxy.remotePort === undefined || proxy.remotePort === '') {
         issues.push(issue(`${prefix}.remotePort`, 'TCP/UDP 代理必须填写远程端口', 'error', '远程端口'));
       } else if (typeof proxy.remotePort !== 'number' || proxy.remotePort < 0 || proxy.remotePort > 65535) {
@@ -890,19 +922,6 @@ export function parseConfigText(text, filename = '') {
   let parsed;
   const warnings = [];
 
-  if (isTemplateConfig(text) && !['json', 'yaml', 'yml', 'ini'].includes(extension)) {
-    try {
-      parseToml(text);
-    } catch {
-      return {
-        config: normalizeConfig({ rawTemplate: text }),
-        raw: null,
-        format: 'template',
-        warnings: ['检测到 Go 模板语法，已启用模板模式；模板会原样保留，不会展开。'],
-      };
-    }
-  }
-
   if (extension === 'ini') {
     format = 'ini';
     parsed = iniToRaw(parseIni(text));
@@ -915,7 +934,7 @@ export function parseConfigText(text, filename = '') {
     parsed = JSON.parse(text);
   } else if (extension === 'toml') {
     format = 'toml';
-    parsed = parseToml(text);
+    parsed = parseTomlDocument(text, warnings);
   } else if (/^\s*\[common\]\s*$/im.test(text)) {
     format = 'ini';
     parsed = iniToRaw(parseIni(text));
@@ -923,8 +942,9 @@ export function parseConfigText(text, filename = '') {
   } else {
     format = 'toml';
     try {
-      parsed = parseToml(text);
+      parsed = parseTomlDocument(text, warnings);
     } catch (tomlError) {
+      if (text.includes('{{')) throw tomlError;
       try {
         format = 'yaml';
         parsed = parseYaml(text);
@@ -938,6 +958,80 @@ export function parseConfigText(text, filename = '') {
     throw new Error('配置文件根节点必须是一个对象');
   }
   return { config: normalizeConfig(parsed), raw: parsed, format, warnings };
+}
+
+function parseTomlDocument(text, warnings) {
+  try {
+    return parseToml(text);
+  } catch (error) {
+    if (!text.includes('{{')) throw error;
+    const extracted = parseBatchTemplates(text);
+    if (!extracted) {
+      throw new Error('暂不支持该 Go 模板写法：仅支持 parseNumberRangePair 批量端口配置');
+    }
+    warnings.push(`已识别 ${extracted.count} 个批量端口配置，将作为单个代理展示`);
+    return extracted.parsed;
+  }
+}
+
+function parseBatchTemplates(text) {
+  const rangePattern = /\{\{-?\s*range\s+(?:\$\w+\s*,\s*)?\$(\w+)\s*:=\s*parseNumberRangePair\s+"([^"]*)"\s+"([^"]*)"\s*-?\}\}([\s\S]*?)\{\{-?\s*end\s*-?\}\}/g;
+  const proxies = [];
+  let remaining = text;
+  let match;
+  let count = 0;
+
+  while ((match = rangePattern.exec(text))) {
+    const [full, variable, localPorts, remotePorts, body] = match;
+    let pairs;
+    try {
+      pairs = parsePortPairs(localPorts, remotePorts);
+    } catch (error) {
+      throw new Error(`批量端口范围无效：${error.message}`);
+    }
+    const firstExpression = new RegExp(`\\{\\{-?\\s*\\$${variable}\\.First\\s*-?\\}\\}`, 'g');
+    const secondExpression = new RegExp(`\\{\\{-?\\s*\\$${variable}\\.Second\\s*-?\\}\\}`, 'g');
+    const nameMatch = body.match(/^\s*name\s*=\s*("(?:[^"\\]|\\.)*")\s*$/m);
+    if (!nameMatch) throw new Error('批量端口块中的代理缺少 name');
+
+    const namePatternRaw = nameMatch[1]
+      .replace(firstExpression, '{localPort}')
+      .replace(secondExpression, '{remotePort}');
+    const namePattern = parseToml(`name = ${namePatternRaw}`).name;
+    const unsupportedBody = body
+      .replace(/^\s*name\s*=.*$/m, '')
+      .replace(/^\s*localPort\s*=.*$/m, '')
+      .replace(/^\s*remotePort\s*=.*$/m, '');
+    if (/\{\{/.test(unsupportedBody)) {
+      throw new Error('批量端口块只支持在 name / localPort / remotePort 中使用 $v.First / $v.Second');
+    }
+    const bodyWithSample = body
+      .replace(firstExpression, String(pairs[0].localPort))
+      .replace(secondExpression, String(pairs[0].remotePort));
+    if (/\{\{/.test(bodyWithSample)) {
+      throw new Error('批量端口块只支持在 name / localPort / remotePort 中使用 $v.First / $v.Second');
+    }
+    const fragment = parseToml(bodyWithSample);
+    if (!Array.isArray(fragment.proxies) || fragment.proxies.length !== 1) {
+      throw new Error('批量端口块必须且只能包含一个 [[proxies]]');
+    }
+    const proxy = fragment.proxies[0];
+    delete proxy.localPort;
+    delete proxy.remotePort;
+    proxy.batch = { localPorts, remotePorts, namePattern };
+    proxy.name = batchPatternName({ name: proxy.name, batch: proxy.batch });
+    proxies.push(proxy);
+    remaining = remaining.replace(full, '\n');
+    count += 1;
+  }
+
+  if (count === 0) return null;
+  if (/\{\{/.test(remaining)) {
+    throw new Error('暂不支持 parseNumberRangePair 之外的自定义模板表达式');
+  }
+  const parsed = remaining.trim() ? parseToml(remaining) : {};
+  parsed.proxies = [...(parsed.proxies || []), ...proxies];
+  return { parsed, count };
 }
 
 function splitList(value) {

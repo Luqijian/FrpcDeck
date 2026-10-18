@@ -241,45 +241,6 @@
     display: none;
   }
 
-  .template-editor-head {
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .template-mode-badge {
-    align-self: flex-start;
-  }
-
-  .template-editor-card {
-    padding: 16px;
-  }
-
-  .template-textarea {
-    min-height: 46vh;
-  }
-
-  .template-actions-spacer {
-    display: none;
-  }
-
-  .template-actions .btn {
-    flex: 1 1 auto;
-    justify-content: center;
-  }
-
-  .template-meta {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .template-data-banner {
-    flex-wrap: wrap;
-  }
-
-  .template-data-banner .btn {
-    width: 100%;
-  }
-
   .dash-hero {
     padding: 23px;
   }

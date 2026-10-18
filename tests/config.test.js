@@ -4,7 +4,6 @@ import fs from 'node:fs';
 import {
   createDefaultConfig,
   generateToml,
-  isTemplateConfig,
   normalizeConfig,
   parseConfigText,
   validateConfig,
@@ -245,41 +244,68 @@ test('normalizeConfig preserves explicit zero remotePort and clears empty domain
   assert.deepEqual(config.proxies[0].customDomains, []);
 });
 
-test('Go template configs are preserved and receive a managed webServer', () => {
-  assert.equal(isTemplateConfig(templateText), true);
-  assert.equal(isTemplateConfig('serverAddr = "example.com"\n'), false);
-
+test('batch port templates become one editable proxy per range block', () => {
   const parsed = parseConfigText(templateText, 'frpc.toml');
-  assert.equal(parsed.format, 'template');
-  assert.equal(parsed.config.rawTemplate, templateText);
-  assert.equal(parsed.config.proxies.length, 0);
+  assert.equal(parsed.format, 'toml');
+  assert.equal(parsed.config.proxies.length, 3);
+  assert.equal(parsed.config.proxies[0].name, 'Sunshine');
+  assert.equal(parsed.config.proxies[0].batch, null);
+
+  const tcp = parsed.config.proxies[1];
+  assert.equal(tcp.name, 'Sunshine-TCP');
+  assert.equal(tcp.type, 'tcp');
+  assert.deepEqual(tcp.batch, {
+    localPorts: '47984-47990,48010',
+    remotePorts: '47984-47990,48010',
+    namePattern: 'Sunshine-TCP-{localPort}',
+  });
+
+  const udp = parsed.config.proxies[2];
+  assert.equal(udp.name, 'Sunshine-UDP');
+  assert.equal(udp.batch.localPorts, '47998-48000,47800,48002,48010');
+
+  assert.ok(parsed.warnings.some((warning) => warning.includes('批量端口')));
 
   const toml = generateToml(parsed.config);
-  assert.match(toml, /\{\{- range/);
-  assert.match(toml, /parseNumberRangePair/);
-  assert.match(toml, /\{\{ \$v\.First }}/);
+  assert.equal((toml.match(/parseNumberRangePair/g) || []).length, 2);
+  assert.match(toml, /name = "Sunshine-TCP-\{\{ \$v\.First }}"/);
+  assert.match(toml, /localPort = \{\{ \$v\.First }}/);
+  assert.match(toml, /remotePort = \{\{ \$v\.Second }}/);
+  assert.match(toml, /type = "https"/);
   assert.match(toml, /\[webServer]/);
-  assert.equal((toml.match(/^\[webServer]/gm) || []).length, 1);
-  assert.doesNotMatch(toml, /rawTemplate/);
-
-  const issues = validateConfig(parsed.config);
-  assert.equal(issues.filter((item) => item.level === 'error').length, 0);
-  assert.match(issues[0].message, /模板模式/);
+  assert.doesNotMatch(toml, /Sunshine-TCP-47984/);
 
   const reparsed = parseConfigText(toml, 'frpc.toml');
-  assert.equal(reparsed.format, 'template');
-  assert.match(reparsed.config.rawTemplate, /\[webServer]/);
-  const again = generateToml(reparsed.config);
-  assert.equal((again.match(/^\[webServer]/gm) || []).length, 1);
+  assert.equal(reparsed.config.proxies.length, 3);
+  assert.deepEqual(reparsed.config.proxies[1].batch, tcp.batch);
+  assert.equal(reparsed.config.proxies[1].name, 'Sunshine-TCP');
+  assert.equal(validateConfig(parsed.config).filter((item) => item.level === 'error').length, 0);
 });
 
-test('templates with an explicit webServer are not modified', () => {
-  const text = `${templateText}\n\n[webServer]\naddr = "127.0.0.1"\nport = 7401\nuser = "monitor"\npassword = "monitor-secret"\n`;
-  const parsed = parseConfigText(text, 'frpc.toml');
-  const toml = generateToml(parsed.config);
-  assert.equal((toml.match(/^\[webServer]/gm) || []).length, 1);
-  assert.doesNotMatch(toml, /模板未声明/);
-  assert.match(validateConfig(parsed.config)[0].message, /已声明 \[webServer]/);
+test('batch validation catches invalid ranges and name collisions', () => {
+  const config = normalizeConfig({
+    serverAddr: '127.0.0.1',
+    proxies: [
+      {
+        name: 'batch',
+        type: 'tcp',
+        localIP: '127.0.0.1',
+        batch: { localPorts: '8000-8002', remotePorts: '9000-9001', namePattern: 'p-{localPort}' },
+      },
+      {
+        name: 'clash',
+        type: 'tcp',
+        localIP: '127.0.0.1',
+        batch: { localPorts: '8000,8001', remotePorts: '9000,9001', namePattern: 'same' },
+      },
+    ],
+  });
+  const messages = validateConfig(config)
+    .filter((item) => item.level === 'error')
+    .map((item) => item.message)
+    .join('\n');
+  assert.match(messages, /数量.*不一致/);
+  assert.match(messages, /名称模板必须包含/);
 });
 
 test('official frpc full example round trips through the generator', () => {

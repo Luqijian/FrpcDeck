@@ -72,10 +72,6 @@ export const store = reactive({
     return this.runtime?.process?.status || 'stopped';
   },
 
-  get templateMode() {
-    return Boolean(this.config?.rawTemplate);
-  },
-
   get connection() {
     return this.runtime?.process?.connection || 'unknown';
   },

@@ -19,6 +19,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Nothing yet.
 
+## [1.2.0] - 2026-10-18
+
+### Added
+
+- Unified visual batch-port model: `parseNumberRangePair` range blocks are imported as editable batch proxies instead of a separate template mode.
+- Batch proxy editor for local/remote port ranges, name templates, and common TCP/UDP options.
+- Batch entries are shown as one proxy row with aggregated runtime status.
+- New batch proxies can be created directly from the proxy editor.
+- Exported TOML regenerates `parseNumberRangePair` blocks and round-trips back into the visual model.
+
+### Changed
+
+- Removed the separate Go-template mode and read-only runtime proxy view; ordinary and batch proxies now use the same editor, list, dashboard and API model.
+- All proxy types remain editable; batch ranges are available for TCP and UDP.
+- Old `rawTemplate` configurations are migrated into batch proxies on startup when possible.
+
 ## [1.1.1] - 2026-10-18
 
 ### Fixed
@@ -76,7 +92,8 @@ Initial public release.
 - Sensitive configuration files are written with mode `0600`; the data directory uses `0700`.
 - The frpc admin API is bound to `127.0.0.1` by default.
 
-[Unreleased]: https://github.com/Luqijian/FrpcDeck/compare/v1.1.1...HEAD
+[Unreleased]: https://github.com/Luqijian/FrpcDeck/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/Luqijian/FrpcDeck/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/Luqijian/FrpcDeck/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/Luqijian/FrpcDeck/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Luqijian/FrpcDeck/tree/v1.0.0

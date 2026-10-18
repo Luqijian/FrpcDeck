@@ -54,7 +54,19 @@ export class Store {
   async #loadConfig() {
     try {
       const raw = JSON.parse(await fs.readFile(this.paths.config, 'utf8'));
-      this.config = normalizeConfig(raw.config || raw);
+      const rawConfig = raw.config || raw;
+      if (rawConfig && typeof rawConfig.rawTemplate === 'string' && rawConfig.rawTemplate.trim()) {
+        try {
+          const migrated = parseConfigText(rawConfig.rawTemplate, 'frpc.toml');
+          this.config = normalizeConfig({ ...rawConfig, ...migrated.config, rawTemplate: undefined });
+          this.warnings.push('已将旧版模板配置转换为可视化批量端口配置');
+        } catch (error) {
+          this.config = normalizeConfig(rawConfig);
+          this.warnings.push(`旧版模板配置无法自动转换：${error.message}`);
+        }
+      } else {
+        this.config = normalizeConfig(rawConfig);
+      }
       this.savedAt = raw.savedAt || null;
       return;
     } catch (error) {
@@ -71,9 +83,6 @@ export class Store {
     try {
       const text = await fs.readFile(this.paths.toml, 'utf8');
       const parsed = parseConfigText(text, 'frpc.toml');
-      if (parsed.config.rawTemplate && !parsed.config.webServer.password) {
-        parsed.config.webServer.password = crypto.randomBytes(12).toString('base64url');
-      }
       this.config = parsed.config;
       this.savedAt = new Date().toISOString();
       this.warnings.push(...parsed.warnings, '已导入现有的 frpc.toml，并创建配置备份到 backups/');

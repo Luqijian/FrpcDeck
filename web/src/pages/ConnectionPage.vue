@@ -5,11 +5,9 @@
         <Server :size="20" />
       </div>
       <div class="connection-banner-copy">
-        <span class="connection-banner-label">{{ templateMode ? '当前配置模式' : '当前 frps 连接' }}</span>
+        <span class="connection-banner-label">当前 frps 连接</span>
         <strong>{{ serverSummary }}</strong>
-        <span class="connection-banner-sub">
-          {{ templateMode ? 'Go 模板会原样保留，frpc 在应用时展开；结构化表单暂时隐藏。' : '配置会写入 frpc.toml，应用时由 frpc 原生校验。' }}
-        </span>
+        <span class="connection-banner-sub">配置会写入 frpc.toml，应用时由 frpc 原生校验。</span>
       </div>
       <span class="connection-banner-status" :class="`tone-${connectionTone}`">
         <StatusDot :tone="connectionTone" :pulse="store.runtimeStatus === 'running'" />
@@ -27,15 +25,15 @@
       </div>
     </section>
 
-    <div v-if="!templateMode" class="section-pills" aria-label="配置章节">
+    <div class="section-pills" aria-label="配置章节">
       <button v-for="section in sections" :key="section.id" type="button" @click="scrollTo(section.id)">
         <component :is="section.icon" :size="14" />
         {{ section.label }}
       </button>
     </div>
 
-    <div class="connection-layout" :class="{ 'is-template': templateMode }">
-      <aside v-if="!templateMode" class="connection-nav">
+    <div class="connection-layout">
+      <aside class="connection-nav">
         <div class="connection-nav-inner card">
           <p class="connection-nav-label">配置章节</p>
           <button
@@ -92,70 +90,7 @@
           </div>
         </Transition>
 
-        <section v-if="templateMode" class="template-workspace">
-          <div class="card template-editor-card">
-            <header class="template-editor-head">
-              <div>
-                <span class="template-kicker"><FileCode2 :size="14" /> GO TEMPLATE</span>
-                <h2>模板配置</h2>
-                <p>这段内容会按原文保存。frpc 在启动前执行模板函数与 range 循环，FrpcDeck 不会展开或重排它。</p>
-              </div>
-              <span class="template-mode-badge">模板模式</span>
-            </header>
-
-            <div class="template-notice" :class="{ 'is-warning': templateHasWebServer }">
-              <TriangleAlert v-if="templateHasWebServer" :size="15" />
-              <Info v-else :size="15" />
-              <span v-if="templateHasWebServer">
-                模板已声明 <code>[webServer]</code>，面板不会覆盖。请确认管理接口地址和凭据与「管理接口」设置一致，否则实时状态可能不可用。
-              </span>
-              <span v-else>
-                模板未声明 <code>[webServer]</code>，应用时会由 FrpcDeck 自动追加面板所需的管理接口配置。
-              </span>
-            </div>
-
-            <textarea
-              v-model="config.rawTemplate"
-              class="input textarea template-textarea"
-              spellcheck="false"
-              aria-label="Go 模板配置"
-              placeholder="粘贴 frpc Go 模板配置…"
-            />
-
-            <div class="template-meta">
-              <span>{{ templateLineCount }} 行 · 原样保留</span>
-              <span class="text-muted">支持 frp v0.56+ 的 Go template 与 parseNumberRangePair</span>
-            </div>
-
-            <div class="template-actions">
-              <button type="button" class="btn btn-ghost" @click="exitTemplateOpen = true">
-                <LogOut :size="15" />
-                退出模板模式
-              </button>
-              <span class="template-actions-spacer" />
-              <button type="button" class="btn btn-secondary" :disabled="validating" @click="runValidate">
-                <ShieldCheck :size="15" />
-                校验模板
-              </button>
-              <button type="button" class="btn btn-secondary" :disabled="tomlLoading" @click="openToml">
-                <FileCode2 :size="15" />
-                预览 TOML
-              </button>
-              <button type="button" class="btn btn-primary" :disabled="!store.dirty || store.saving" @click="apply">
-                <Loader2 v-if="store.saving" :size="15" class="spin" />
-                <Check v-else :size="15" />
-                {{ store.saving ? '应用中…' : '应用更改' }}
-              </button>
-            </div>
-          </div>
-          <p class="template-readonly-note">
-            <Info :size="14" />
-            模板模式下，代理页展示的是 frpc 运行时生成的只读结果；要修改代理，请直接编辑上方模板。
-          </p>
-        </section>
-
-        <template v-else>
-          <FormSection
+        <FormSection
           anchor="server"
           title="frps 服务器"
           description="frpc 启动后会连接这个地址，并从这里接受代理请求。"
@@ -515,7 +450,6 @@
             {{ store.saving ? '应用中…' : '应用更改' }}
           </button>
         </div>
-        </template>
       </div>
     </div>
 
@@ -542,7 +476,7 @@
     <ModalShell
       :open="showImport"
       title="导入 frpc 配置"
-      subtitle="支持 TOML、YAML、JSON 与旧版 INI；检测到 Go template 时会自动进入模板模式。"
+      subtitle="支持 TOML、YAML、JSON 与旧版 INI；批量端口会识别为单个代理。"
       variant="modal"
       size="lg"
       @close="closeImport"
@@ -566,18 +500,13 @@
         <div v-if="importResult" class="import-result">
           <div class="import-result-head">
             <span class="import-format">{{ importResult.format.toUpperCase() }}</span>
-            <template v-if="importResult.format === 'template'">
-              <span>模板模式 · 原样保留</span>
-            </template>
-            <template v-else>
-              <span>{{ importResult.config.proxies?.length || 0 }} 个代理</span>
-              <span>{{ importResult.config.visitors?.length || 0 }} 个访问器</span>
-            </template>
+            <span>{{ importResult.config.proxies?.length || 0 }} 个代理</span>
+            <span>{{ importResult.config.visitors?.length || 0 }} 个访问器</span>
             <span v-if="importResult.warnings?.length" class="text-warning">{{ importResult.warnings.length }} 条提示</span>
           </div>
-          <p v-if="importResult.format === 'template'" class="import-template-note">
+          <p v-if="hasBatchImport" class="import-batch-note">
             <FileCode2 :size="15" />
-            检测到 Go 模板语法。循环不会被展开，应用时由 frpc 执行；代理列表将显示运行时结果。
+            已识别批量端口配置。每条批量配置在列表中显示为一个代理，可点击编辑端口范围与名称模板。
           </p>
           <ul v-if="importResult.warnings?.length" class="import-warnings">
             <li v-for="warning in importResult.warnings" :key="warning">{{ warning }}</li>
@@ -587,11 +516,7 @@
               {{ item.message }}
             </li>
           </ul>
-          <CodeBlock
-            :code="importResult.toml"
-            :filename="importResult.format === 'template' ? '模板预览（应用时写入）' : '转换后的 frpc.toml'"
-            max-height="26vh"
-          />
+          <CodeBlock :code="importResult.toml" filename="转换后的 frpc.toml" max-height="26vh" />
         </div>
       </div>
       <template #footer>
@@ -612,16 +537,6 @@
         </template>
       </template>
     </ModalShell>
-
-    <ConfirmDialog
-      :open="exitTemplateOpen"
-      title="退出模板模式？"
-      message="模板将从当前草稿中移除，底层的结构化配置会重新显示。应用更改前不会影响正在运行的 frpc。"
-      confirm-label="退出模板模式"
-      :loading="false"
-      @cancel="exitTemplateOpen = false"
-      @confirm="exitTemplateMode"
-    />
   </div>
 </template>
 
@@ -640,7 +555,6 @@ import {
   KeyRound,
   ListFilter,
   Loader2,
-  LogOut,
   Network,
   Radio,
   RefreshCw,
@@ -655,7 +569,6 @@ import {
   X,
 } from 'lucide-vue-next';
 import CodeBlock from '@/components/CodeBlock.vue';
-import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import CopyButton from '@/components/CopyButton.vue';
 import FormAccordion from '@/components/FormAccordion.vue';
 import FormField from '@/components/FormField.vue';
@@ -688,16 +601,11 @@ const importContent = ref('');
 const importFilename = ref('');
 const importResult = ref(null);
 const importing = ref(false);
-const exitTemplateOpen = ref(false);
 
-const templateMode = computed(() => Boolean(config.value?.rawTemplate));
-const templateHasWebServer = computed(
-  () => /^\s*(?:\[webServer\]|webServer\s*=|webServer\.)/m.test(config.value?.rawTemplate || ''),
+const hasBatchImport = computed(
+  () => Boolean(importResult.value?.config?.proxies?.some((proxy) => proxy.batch))
+    || Boolean(importResult.value?.warnings?.some((warning) => warning.includes('批量'))),
 );
-const templateLineCount = computed(() => {
-  const text = String(config.value?.rawTemplate || '').replace(/\n$/, '');
-  return text ? text.split('\n').length : 0;
-});
 
 const authMethods = [
   { value: 'token', label: 'Token' },
@@ -731,7 +639,6 @@ const tokenMode = computed({
 });
 
 const serverSummary = computed(() => {
-  if (templateMode.value) return 'Go 模板配置（原样保留）';
   if (!config.value?.serverAddr) return '尚未配置 frps 服务器';
   return `${config.value.serverAddr}:${config.value.serverPort || 7000}`;
 });
@@ -892,20 +799,6 @@ function applyImport() {
   store.config = importResult.value.config;
   store.issues = importResult.value.issues || [];
   showImport.value = false;
-  toast(
-    importResult.value.format === 'template'
-      ? '模板已导入草稿；检查后点击“应用更改”'
-      : '配置已导入草稿，检查后点击“应用更改”',
-    'success',
-    5000,
-  );
-}
-
-function exitTemplateMode() {
-  if (!config.value) return;
-  config.value.rawTemplate = '';
-  store.issues = [];
-  exitTemplateOpen.value = false;
-  toast('已退出模板模式，请检查结构化配置后重新应用', 'info', 5000);
+  toast('配置已导入草稿，检查后点击“应用更改”', 'success', 5000);
 }
 </script>

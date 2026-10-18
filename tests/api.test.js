@@ -320,7 +320,7 @@ test('reset clears configuration after explicit confirmation', async () => {
   assert.ok(reset.data.config.webServer.password);
 });
 
-test('template imports are preserved, validated and applied without expanding', async () => {
+test('batch port imports are normalized, editable and applied as one proxy per range', async () => {
   const before = await request('/api/config');
   const content = await fs.readFile(new URL('./fixtures/frpc_template.toml', import.meta.url), 'utf8');
   const imported = await request('/api/config/import', {
@@ -328,25 +328,28 @@ test('template imports are preserved, validated and applied without expanding', 
     body: { filename: 'frpc.toml', content },
   });
   assert.equal(imported.response.status, 200);
-  assert.equal(imported.data.format, 'template');
-  assert.equal(imported.data.config.rawTemplate, content);
+  assert.equal(imported.data.format, 'toml');
+  assert.equal(imported.data.config.proxies.length, 3);
+  assert.equal(imported.data.config.proxies[1].name, 'Sunshine-TCP');
+  assert.equal(imported.data.config.proxies[1].batch.localPorts, '47984-47990,48010');
   assert.equal(imported.data.config.webServer.password, before.data.config.webServer.password);
   assert.match(imported.data.toml, /\{\{- range/);
   assert.match(imported.data.toml, /parseNumberRangePair/);
   assert.match(imported.data.toml, /\[webServer]/);
   assert.doesNotMatch(imported.data.toml, /Sunshine-TCP-47984/);
-  assert.ok(imported.data.issues.some((item) => /模板模式/.test(item.message)));
+  assert.ok(imported.data.warnings.some((warning) => /批量端口/.test(warning)));
 
   const applied = await request('/api/config', {
     method: 'PUT',
     body: { config: imported.data.config, restart: false },
   });
   assert.equal(applied.response.status, 200);
-  assert.equal(applied.data.config.rawTemplate, content);
+  assert.equal(applied.data.config.proxies.length, 3);
+  assert.equal(applied.data.config.proxies[2].batch.localPorts, '47998-48000,47800,48002,48010');
   assert.match(applied.data.toml, /\{\{- range/);
-  assert.match(applied.data.toml, /\[webServer]/);
+  assert.match(applied.data.toml, /Sunshine-UDP-\{\{ \$v\.First }}/);
 
   const current = await request('/api/config');
-  assert.equal(current.data.config.rawTemplate, content);
+  assert.equal(current.data.config.proxies.length, 3);
   assert.match(current.data.toml, /Sunshine-UDP/);
 });

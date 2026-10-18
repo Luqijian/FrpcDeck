@@ -38,7 +38,7 @@ remotePort = 6001
   }
 });
 
-test('first run adopts a Go template frpc.toml without expanding it', async () => {
+test('first run adopts and normalizes a batch-port frpc.toml', async () => {
   const dir = await tempDir();
   try {
     const template = await fs.readFile(
@@ -47,11 +47,11 @@ test('first run adopts a Go template frpc.toml without expanding it', async () =
     );
     await fs.writeFile(path.join(dir, 'frpc.toml'), template);
     const store = await new Store(dir).init();
-    assert.equal(store.config.rawTemplate, template);
-    assert.ok(store.config.webServer.password);
+    assert.equal(store.config.rawTemplate, undefined);
+    assert.equal(store.config.proxies.length, 3);
+    assert.equal(store.config.proxies[1].batch.namePattern, 'Sunshine-TCP-{localPort}');
     const generated = await store.readToml();
-    assert.match(generated, /\{\{- range/);
-    assert.match(generated, /parseNumberRangePair/);
+    assert.equal((generated.match(/parseNumberRangePair/g) || []).length, 2);
     assert.match(generated, /\[webServer]/);
     assert.doesNotMatch(generated, /Sunshine-TCP-47984/);
   } finally {

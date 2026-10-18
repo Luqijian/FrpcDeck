@@ -215,7 +215,7 @@ const primaryNav = computed(() => [
 ]);
 
 const secondaryNav = computed(() => [
-  { name: 'connection', label: '连接配置', icon: Server, dot: !store.config?.serverAddr && !store.templateMode },
+  { name: 'connection', label: '连接配置', icon: Server, dot: !store.config?.serverAddr },
   { name: 'logs', label: '运行日志', icon: ScrollText, dot: store.runtimeStatus === 'error' },
   { name: 'settings', label: '设置', icon: Settings },
 ]);
@@ -229,9 +229,7 @@ const mobileNav = computed(() => [
   { name: 'settings', label: '设置', icon: Settings },
 ]);
 
-const proxyCount = computed(
-  () => (store.templateMode ? (store.runtime?.proxies || []).length : store.config?.proxies?.length || 0),
-);
+const proxyCount = computed(() => store.config?.proxies?.length || 0);
 const visitorCount = computed(() => store.config?.visitors?.length || 0);
 const liveProxyCount = computed(
   () => (store.runtime?.proxies || []).filter((item) => item.status === 'running').length,
@@ -258,7 +256,6 @@ const connectionLabel = computed(() => {
 });
 const serverLabel = computed(() => {
   const config = store.config;
-  if (store.templateMode) return 'Go 模板模式';
   if (!config?.serverAddr) return '尚未配置 frps';
   return `${config.serverAddr}:${config.serverPort || 7000}`;
 });
