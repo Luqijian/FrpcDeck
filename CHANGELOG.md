@@ -49,4 +49,4 @@ Initial public release.
 - The frpc admin API is bound to `127.0.0.1` by default.
 
 [Unreleased]: https://github.com/Luqijian/FrpcDeck/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/Luqijian/FrpcDeck/releases/tag/v1.0.0
+[1.0.0]: https://github.com/Luqijian/FrpcDeck/tree/v1.0.0
