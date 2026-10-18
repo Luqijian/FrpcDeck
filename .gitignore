@@ -14,3 +14,6 @@ test-results/
 docs/screenshots/*.tmp.png
 *.local
 coverage/
+
+# Local article drafts (not published in repo)
+article/
