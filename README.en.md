@@ -100,7 +100,7 @@ The detailed documentation is currently written in Chinese; English translations
 
 | Document | Content |
 | --- | --- |
-| [Deployment](docs/deployment.md) | Compose, host networking, environment variables, reverse proxy, upgrades |
+| [Deployment](docs/deployment.md) | Public GHCR image, Compose, host networking, environment variables, reverse proxy, upgrades |
 | [Configuration](docs/configuration.md) | Supported fields, proxy types, plugins, visitors, import rules |
 | [Architecture](docs/architecture.md) | Backend/frontend modules, data flow, process lifecycle, security model |
 | [HTTP API](docs/api.md) | REST endpoints, SSE, authentication, error schema |

@@ -100,7 +100,7 @@ docker compose up -d --build
 
 | 文档 | 内容 |
 | --- | --- |
-| [部署指南](docs/deployment.md) | Compose、host 网络、环境变量、反向代理、升级、备份 |
+| [部署指南](docs/deployment.md) | GHCR 公开镜像、Compose、host 网络、环境变量、反向代理、升级、备份 |
 | [配置说明](docs/configuration.md) | 字段覆盖范围、代理/插件/访问器、导入、校验 |
 | [架构设计](docs/architecture.md) | 模块、数据流、进程状态、安全模型 |
 | [HTTP API](docs/api.md) | REST 接口、SSE、认证、错误格式 |
