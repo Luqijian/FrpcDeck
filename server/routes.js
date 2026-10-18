@@ -265,11 +265,12 @@ export async function registerRoutes(app, services) {
   async function applyConfig(config, { restart = true, note = '应用新配置' } = {}) {
     const { normalized, issues, toml, verify } = await validateForApply(config);
     const wasActive = ['running', 'starting'].includes(frpc.state.status);
+    const templateMode = Boolean(normalized.rawTemplate.trim());
     const saved = await store.persistConfig(normalized, { note });
     const apply = { attempted: false, ok: true, error: '' };
 
     if (restart) {
-      if (!normalized.serverAddr) {
+      if (!templateMode && !normalized.serverAddr) {
         if (wasActive) {
           apply.attempted = true;
           await frpc.stop({ quiet: true });
@@ -375,6 +376,17 @@ export async function registerRoutes(app, services) {
     return config;
   }
 
+  function adoptTemplateBase(parsed) {
+    if (parsed.format !== 'template' || !store.config) return parsed;
+    parsed.config = normalizeConfig({
+      ...store.config,
+      rawTemplate: parsed.config.rawTemplate,
+      webServer: store.config.webServer,
+    });
+    parsed.raw = null;
+    return parsed;
+  }
+
   app.post('/api/config/import', async (request) => {
     const body = bodyObject(request);
     let parsed;
@@ -383,6 +395,7 @@ export async function registerRoutes(app, services) {
     } catch (error) {
       throw apiError(400, 'parse-failed', error.message);
     }
+    adoptTemplateBase(parsed);
     preserveAdminInterface(parsed.config, parsed.raw);
     const issues = validateConfig(parsed.config);
     return {
@@ -413,6 +426,7 @@ export async function registerRoutes(app, services) {
     } catch (error) {
       throw apiError(400, 'parse-failed', error.message);
     }
+    adoptTemplateBase(parsed);
     preserveAdminInterface(parsed.config, parsed.raw);
     const result = await applyConfig(parsed.config, {
       restart: body.restart !== false,

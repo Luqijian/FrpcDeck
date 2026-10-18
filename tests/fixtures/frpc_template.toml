@@ -1,0 +1,31 @@
+serverAddr = "127.0.0.1"
+serverPort = 7000
+
+auth.method = "token"
+auth.token = "test-token"
+
+[[proxies]]
+name = "Sunshine"
+type = "https"
+localIP = "192.168.50.152"
+localPort = 47990
+customDomains = ["sunshine.example.com"]
+transport.useCompression = true
+
+{{- range $_, $v := parseNumberRangePair "47984-47990,48010" "47984-47990,48010" }}
+[[proxies]]
+name = "Sunshine-TCP-{{ $v.First }}"
+type = "tcp"
+localIP = "192.168.50.152"
+localPort = {{ $v.First }}
+remotePort = {{ $v.Second }}
+{{- end }}
+
+{{- range $_, $v := parseNumberRangePair "47998-48000,47800,48002,48010" "47998-48000,47800,48002,48010" }}
+[[proxies]]
+name = "Sunshine-UDP-{{ $v.First }}"
+type = "udp"
+localIP = "192.168.50.152"
+localPort = {{ $v.First }}
+remotePort = {{ $v.Second }}
+{{- end }}

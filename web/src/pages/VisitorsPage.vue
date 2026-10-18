@@ -23,13 +23,22 @@
           </button>
         </div>
       </div>
-      <button type="button" class="btn btn-primary toolbar-add" @click="openCreate">
+      <button v-if="!templateMode" type="button" class="btn btn-primary toolbar-add" @click="openCreate">
         <Plus :size="16" />
         <span>新建访问器</span>
       </button>
     </div>
 
-    <div class="visitor-hint">
+    <div v-if="templateMode" class="template-data-banner card">
+      <span class="template-data-icon"><FileCode2 :size="18" /></span>
+      <div class="template-data-copy">
+        <strong>模板模式</strong>
+        <span>访问器由 Go 模板在 frpc 启动时生成，面板不会展开或单独编辑。</span>
+      </div>
+      <RouterLink to="/connection" class="btn btn-secondary btn-sm">编辑模板</RouterLink>
+    </div>
+
+    <div v-if="!templateMode" class="visitor-hint">
       <Info :size="15" />
       <span>访问器用于连接其他 frpc 暴露的 STCP / SUDP / XTCP 服务。运行状态由 frpc 管理，可在日志中查看启动结果。</span>
     </div>
@@ -100,7 +109,14 @@
 
     <div v-else class="card list-empty-card">
       <EmptyState
-        v-if="totalCount === 0"
+        v-if="templateMode"
+        title="模板模式"
+        description="访问器由模板定义并在 frpc 启动时创建；如需修改，请编辑连接配置中的模板。"
+      >
+        <RouterLink to="/connection" class="btn btn-primary">编辑模板</RouterLink>
+      </EmptyState>
+      <EmptyState
+        v-else-if="totalCount === 0"
         title="还没有访问器"
         description="当目标代理是 STCP、SUDP 或 XTCP 时，需要在本机创建一个访问器，才能通过本地端口访问它。"
       >
@@ -140,6 +156,7 @@ import { useRoute, useRouter } from 'vue-router';
 import {
   ArrowRight,
   Copy,
+  FileCode2,
   Info,
   KeyRound,
   Pencil,
@@ -171,7 +188,8 @@ const editorMode = ref('create');
 const editingVisitor = ref(null);
 const deleteTarget = ref(null);
 
-const visitors = computed(() => store.config?.visitors || []);
+const templateMode = computed(() => Boolean(store.config?.rawTemplate));
+const visitors = computed(() => (templateMode.value ? [] : store.config?.visitors || []));
 const totalCount = computed(() => visitors.value.length);
 
 const filters = computed(() => [
@@ -228,18 +246,21 @@ function resetFilters() {
 }
 
 function openCreate() {
+  if (templateMode.value) return;
   editorMode.value = 'create';
   editingVisitor.value = null;
   editorOpen.value = true;
 }
 
 function openEdit(visitor) {
+  if (templateMode.value) return;
   editorMode.value = 'edit';
   editingVisitor.value = jsonClone(visitor);
   editorOpen.value = true;
 }
 
 function duplicateVisitor(visitor) {
+  if (templateMode.value) return;
   const copy = jsonClone(visitor);
   copy.name = nextName(visitors.value, visitor.type);
   copy.bindPort = undefined;

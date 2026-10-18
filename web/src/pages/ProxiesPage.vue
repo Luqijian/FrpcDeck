@@ -23,10 +23,19 @@
           </button>
         </div>
       </div>
-      <button type="button" class="btn btn-primary toolbar-add" @click="openCreate">
+      <button v-if="!templateMode" type="button" class="btn btn-primary toolbar-add" @click="openCreate">
         <Plus :size="16" />
         <span>新建代理</span>
       </button>
+    </div>
+
+    <div v-if="templateMode" class="template-data-banner card">
+      <span class="template-data-icon"><FileCode2 :size="18" /></span>
+      <div class="template-data-copy">
+        <strong>模板模式</strong>
+        <span>代理由 Go 模板在 frpc 启动时生成，下面是运行时结果，只读。要修改请编辑模板。</span>
+      </div>
+      <RouterLink to="/connection" class="btn btn-secondary btn-sm">编辑模板</RouterLink>
     </div>
 
     <div class="list-summary">
@@ -53,17 +62,20 @@
           class="proxy-item"
           :class="{ 'is-disabled': !proxy.enabled }"
           role="button"
-          tabindex="0"
+          :tabindex="templateMode ? -1 : 0"
           @click="openEdit(proxy)"
           @keydown.enter="openEdit(proxy)"
         >          <div class="proxy-main">
-            <span class="proxy-toggle" @click.stop>
+            <span v-if="!templateMode" class="proxy-toggle" @click.stop>
               <ToggleSwitch
                 :model-value="proxy.enabled"
                 small
                 :aria-label="proxy.enabled ? '停用代理' : '启用代理'"
                 @update:model-value="proxy.enabled = $event"
               />
+            </span>
+            <span v-else class="proxy-toggle template-lock" title="模板模式，只读">
+              <LockKeyhole :size="14" />
             </span>
             <span class="proxy-type-icon" :style="{ '--type-color': proxyMeta(proxy).color }">
               <TypeIcon :type="proxy.type" :size="17" />
@@ -105,15 +117,18 @@
           </div>
 
           <div class="proxy-actions" @click.stop>
-            <button type="button" class="icon-btn" title="编辑" aria-label="编辑代理" @click="openEdit(proxy)">
-              <Pencil :size="15" />
-            </button>
-            <button type="button" class="icon-btn" title="复制" aria-label="复制代理" @click="duplicateProxy(proxy)">
-              <Copy :size="15" />
-            </button>
-            <button type="button" class="icon-btn danger-hover" title="删除" aria-label="删除代理" @click="askDelete(proxy)">
-              <Trash2 :size="15" />
-            </button>
+            <template v-if="!templateMode">
+              <button type="button" class="icon-btn" title="编辑" aria-label="编辑代理" @click="openEdit(proxy)">
+                <Pencil :size="15" />
+              </button>
+              <button type="button" class="icon-btn" title="复制" aria-label="复制代理" @click="duplicateProxy(proxy)">
+                <Copy :size="15" />
+              </button>
+              <button type="button" class="icon-btn danger-hover" title="删除" aria-label="删除代理" @click="askDelete(proxy)">
+                <Trash2 :size="15" />
+              </button>
+            </template>
+            <span v-else class="template-readonly-badge">只读</span>
           </div>
         </div>
       </div>
@@ -126,7 +141,14 @@
 
     <div v-else class="card list-empty-card">
       <EmptyState
-        v-if="totalCount === 0"
+        v-if="templateMode"
+        title="等待模板生成代理"
+        description="应用模板并启动 frpc 后，这里会显示模板运行时生成的代理状态。"
+      >
+        <RouterLink to="/connection" class="btn btn-primary">编辑模板</RouterLink>
+      </EmptyState>
+      <EmptyState
+        v-else-if="totalCount === 0"
         title="还没有代理"
         description="创建一个隧道，把内网 SSH、网站、数据库或任意 TCP/UDP 服务安全地暴露到公网。"
       >
@@ -173,7 +195,9 @@ import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   Copy,
+  FileCode2,
   HeartPulse,
+  LockKeyhole,
   Pencil,
   Plus,
   RefreshCw,
@@ -197,6 +221,7 @@ import {
   proxyLocal,
   proxyMeta,
   runtimeProxyMap,
+  runtimeProxyToDisplay,
   statusOf,
 } from '@/frp';
 import { saveConfig, store, toast } from '@/store';
@@ -210,7 +235,9 @@ const editorMode = ref('create');
 const editingProxy = ref(null);
 const deleteTarget = ref(null);
 
-const proxies = computed(() => store.config?.proxies || []);
+const templateMode = computed(() => Boolean(store.config?.rawTemplate));
+const runtimeProxies = computed(() => (store.runtime?.proxies || []).map(runtimeProxyToDisplay));
+const proxies = computed(() => (templateMode.value ? runtimeProxies.value : store.config?.proxies || []));
 const runtimeMap = computed(() => runtimeProxyMap(store.runtime?.proxies || []));
 const isRunning = computed(() => store.runtimeStatus === 'running');
 const totalCount = computed(() => proxies.value.length);
@@ -260,6 +287,10 @@ const existingNames = computed(() => {
 });
 
 function statusKey(proxy) {
+  if (proxy._runtime) {
+    if (proxy.status === 'start error') return 'error';
+    return proxy.status || 'pending';
+  }
   if (!proxy.enabled) return 'disabled';
   if (store.dirty) {
     const saved = store.savedConfig?.proxies?.find((item) => item.name === proxy.name);
@@ -276,6 +307,7 @@ function statusInfo(proxy) {
 }
 
 function statusTitle(proxy) {
+  if (proxy._runtime) return proxy.err || statusInfo(proxy).label;
   const live = runtimeMap.value.get(proxy.name);
   return live?.err || statusInfo(proxy).label;
 }
@@ -285,6 +317,7 @@ function pluginLabel(proxy) {
 }
 
 function endpointFor(proxy) {
+  if (proxy._runtime) return proxy.remoteAddr || '模板生成';
   const live = runtimeMap.value.get(proxy.name);
   if (['tcp', 'udp'].includes(proxy.type) && Number(proxy.remotePort) === 0 && live?.remote_addr) {
     return live.remote_addr;
@@ -298,18 +331,21 @@ function resetFilters() {
 }
 
 function openCreate() {
+  if (templateMode.value) return;
   editorMode.value = 'create';
   editingProxy.value = null;
   editorOpen.value = true;
 }
 
 function openEdit(proxy) {
+  if (templateMode.value) return;
   editorMode.value = 'edit';
   editingProxy.value = jsonClone(proxy);
   editorOpen.value = true;
 }
 
 function duplicateProxy(proxy) {
+  if (templateMode.value) return;
   const copy = jsonClone(proxy);
   copy.name = nextName(proxies.value, proxy.type);
   copy.enabled = false;
@@ -352,6 +388,7 @@ async function handleSave(proxy, options = {}) {
 }
 
 function askDelete(proxy) {
+  if (templateMode.value) return;
   deleteTarget.value = proxy;
 }
 

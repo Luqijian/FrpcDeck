@@ -4,11 +4,14 @@ import fs from 'node:fs';
 import {
   createDefaultConfig,
   generateToml,
+  isTemplateConfig,
   normalizeConfig,
   parseConfigText,
   validateConfig,
 } from '../server/config.js';
 import { stringifyToml } from '../server/toml.js';
+
+const templateText = fs.readFileSync(new URL('./fixtures/frpc_template.toml', import.meta.url), 'utf8');
 
 const baseConfig = {
   serverAddr: 'frps.example.com',
@@ -240,6 +243,43 @@ test('normalizeConfig preserves explicit zero remotePort and clears empty domain
   });
   assert.equal(config.proxies[0].remotePort, 0);
   assert.deepEqual(config.proxies[0].customDomains, []);
+});
+
+test('Go template configs are preserved and receive a managed webServer', () => {
+  assert.equal(isTemplateConfig(templateText), true);
+  assert.equal(isTemplateConfig('serverAddr = "example.com"\n'), false);
+
+  const parsed = parseConfigText(templateText, 'frpc.toml');
+  assert.equal(parsed.format, 'template');
+  assert.equal(parsed.config.rawTemplate, templateText);
+  assert.equal(parsed.config.proxies.length, 0);
+
+  const toml = generateToml(parsed.config);
+  assert.match(toml, /\{\{- range/);
+  assert.match(toml, /parseNumberRangePair/);
+  assert.match(toml, /\{\{ \$v\.First }}/);
+  assert.match(toml, /\[webServer]/);
+  assert.equal((toml.match(/^\[webServer]/gm) || []).length, 1);
+  assert.doesNotMatch(toml, /rawTemplate/);
+
+  const issues = validateConfig(parsed.config);
+  assert.equal(issues.filter((item) => item.level === 'error').length, 0);
+  assert.match(issues[0].message, /模板模式/);
+
+  const reparsed = parseConfigText(toml, 'frpc.toml');
+  assert.equal(reparsed.format, 'template');
+  assert.match(reparsed.config.rawTemplate, /\[webServer]/);
+  const again = generateToml(reparsed.config);
+  assert.equal((again.match(/^\[webServer]/gm) || []).length, 1);
+});
+
+test('templates with an explicit webServer are not modified', () => {
+  const text = `${templateText}\n\n[webServer]\naddr = "127.0.0.1"\nport = 7401\nuser = "monitor"\npassword = "monitor-secret"\n`;
+  const parsed = parseConfigText(text, 'frpc.toml');
+  const toml = generateToml(parsed.config);
+  assert.equal((toml.match(/^\[webServer]/gm) || []).length, 1);
+  assert.doesNotMatch(toml, /模板未声明/);
+  assert.match(validateConfig(parsed.config)[0].message, /已声明 \[webServer]/);
 });
 
 test('official frpc full example round trips through the generator', () => {

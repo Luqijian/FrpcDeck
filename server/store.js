@@ -71,6 +71,9 @@ export class Store {
     try {
       const text = await fs.readFile(this.paths.toml, 'utf8');
       const parsed = parseConfigText(text, 'frpc.toml');
+      if (parsed.config.rawTemplate && !parsed.config.webServer.password) {
+        parsed.config.webServer.password = crypto.randomBytes(12).toString('base64url');
+      }
       this.config = parsed.config;
       this.savedAt = new Date().toISOString();
       this.warnings.push(...parsed.warnings, '已导入现有的 frpc.toml，并创建配置备份到 backups/');

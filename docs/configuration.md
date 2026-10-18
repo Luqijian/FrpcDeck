@@ -194,6 +194,7 @@ bindPort = 9000
 支持格式：
 
 - TOML（推荐）
+- TOML + Go template（frp v0.56+）
 - YAML
 - JSON
 - 旧版 INI（会做字段映射，极少数旧字段可能被忽略）
@@ -210,6 +211,43 @@ bindPort = 9000
 
 - 「设置 → 导入与导出」可以下载 `frpc.toml` 或面板 JSON；
 - 「连接配置 → 查看 TOML」可预览当前配置。
+
+## Go 模板模式
+
+FrpcDeck 兼容 frp v0.56+ 的 Go template 配置。常见写法：
+
+```toml
+{{- range $_, $v := parseNumberRangePair "47984-47990,48010" "47984-47990,48010" }}
+[[proxies]]
+name = "Sunshine-TCP-{{ $v.First }}"
+type = "tcp"
+localIP = "192.168.50.152"
+localPort = {{ $v.First }}
+remotePort = {{ $v.Second }}
+{{- end }}
+```
+
+当导入的 TOML 包含 Go template 动作、且无法作为普通 TOML 解析时，面板会自动进入**模板模式**：
+
+- 原文保存在配置的 `rawTemplate` 字段中，**原样保留，不展开循环**；
+- 应用时把模板写入 `frpc.toml`，由 frpc 自己渲染 Go template，再解析 TOML；
+- 保存前仍然执行 `frpc verify`，因此模板函数、变量或 TOML 错误会由 frpc 报出；
+- 如果模板没有声明 `[webServer]`，面板会自动追加管理接口块（默认 `127.0.0.1:7400`），以保证实时状态可用；如果模板已声明，则完全按模板使用，并提示确认凭据；
+- 「连接配置」会隐藏结构化表单，只显示模板编辑器；
+- 「代理」页展示 frpc 运行时生成的代理，**只读**；代理数量在 frpc 启动后才会出现；
+- 导入模板时，面板会保留导入前的结构化配置；点击「退出模板模式」即可恢复，应用前不会影响运行中的 frpc；
+- 导入一份普通 TOML/YAML/JSON 配置会退出模板模式。
+
+模板由 frpc 执行，FrpcDeck 不解析其中的 `serverAddr`、token 或代理数量，因此：
+
+- 连接页显示“模板模式”，不能从结构化表单修改模板里的字段；
+- 模板没有启动或 `frpc verify` 未通过时，代理页不会显示生成的代理；
+- 模板中可以继续使用 frp 的内置模板函数、`includes` 和所有 TOML 字段；
+- 不要把只有 FrpcDeck 能理解的字段写进模板；模板只应包含 frpc 支持的配置。
+
+官方语法参考：[Port Range Mapping](https://gofrp.org/en/docs/features/common/range/)。
+
+![Go 模板模式](screenshots/template.png)
 
 ## 校验规则概览
 
@@ -230,7 +268,9 @@ bindPort = 9000
 
 ## 已知边界
 
-- **管理接口由面板保留**：为了保证实时状态，面板总是生成 `webServer` 配置。默认监听 127.0.0.1。
+- **结构化模式保留管理接口**：为了保证实时状态，结构化模式总是生成 `webServer` 配置，默认监听 127.0.0.1。
+- **模板模式不展开代理**：模板生成的代理只以 frpc 运行时状态展示，不能在面板中逐条编辑；请修改模板。
+- **模板无法自动转结构化**：面板不会尝试展开 `range` 或求值模板函数；需要静态配置时请自行展开后导入。
 - **includes 中的代理不显示**：通过 `includes` 加载的代理由 frpc 管理，面板无法读取其详情；建议迁移到面板。
 - **start 白名单优先于 enabled**：如果设置了 `start`，未列入其中的代理不会启动。
 - **未覆盖字段**：未来新增或极冷门字段可以通过「导入配置」直接写 TOML；结构化表单不会全部展开。
@@ -238,4 +278,4 @@ bindPort = 9000
 
 ## 兼容性验证
 
-项目自带官方 `frpc_full_example.toml` 的解析/生成往返测试，覆盖 18 个代理、3 个访问器、10 种插件；生成结果通过 `frpc verify`。测试文件位于 `tests/fixtures/`。
+项目自带官方 `frpc_full_example.toml` 的解析/生成往返测试，覆盖 18 个代理、3 个访问器、10 种插件；生成结果通过 `frpc verify`。模板模式另有 `tests/fixtures/frpc_template.toml` 测试，验证原文保留、只追加一次 `[webServer]`，并通过真实 frpc 校验。测试文件位于 `tests/fixtures/`。

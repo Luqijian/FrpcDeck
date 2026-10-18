@@ -21,6 +21,15 @@ import { stringifyToml } from './toml.js';
 
 const CONFIG_FORMAT_VERSION = 1;
 
+// frp renders config files as Go templates before parsing TOML (v0.56+).
+// Keep these documents verbatim so loops/functions stay under the user's control.
+const GO_TEMPLATE_ACTION = /\{\{[-]?\s*(?:\/\*|range\b|if\b|with\b|define\b|template\b|block\b|end\b|else\b|\.|\$|[A-Za-z_])/;
+const TEMPLATE_WEBSERVER = /^\s*(?:\[webServer\]|webServer\s*=|webServer\.)/m;
+
+export function isTemplateConfig(text) {
+  return typeof text === 'string' && GO_TEMPLATE_ACTION.test(text);
+}
+
 const DEFAULT_LOG = {
   to: 'console',
   level: 'info',
@@ -291,6 +300,7 @@ export function normalizeConfig(input) {
 
   const config = {
     ...source,
+    rawTemplate: str(source.rawTemplate),
     clientID: str(source.clientID),
     user: str(source.user),
     serverAddr: str(source.serverAddr).trim(),
@@ -452,7 +462,7 @@ function compactObject(input) {
   const source = asObject(input);
   const output = {};
   for (const [key, value] of Object.entries(source)) {
-    if (key.startsWith('_')) continue;
+    if (key.startsWith('_') || key === 'rawTemplate') continue;
     if (value === undefined || value === null) continue;
 
     if (typeof value === 'string') {
@@ -519,10 +529,40 @@ const TOML_COMMENTS = {
 };
 
 export function generateToml(input) {
+  const rawTemplate = str(input?.rawTemplate);
+  if (rawTemplate.trim()) {
+    return templateToToml(rawTemplate, normalizeConfig(input));
+  }
   return stringifyToml(compactConfig(input), {
     header: TOML_HEADER,
     comments: TOML_COMMENTS,
   });
+}
+
+function templateToToml(rawTemplate, config) {
+  let text = rawTemplate.replace(/\r\n/g, '\n');
+  if (!TEMPLATE_WEBSERVER.test(text)) {
+    text = `${text.replace(/\s*$/, '')}\n\n${managedWebServerToml(config.webServer)}\n`;
+  } else if (!text.endsWith('\n')) {
+    text += '\n';
+  }
+  return text;
+}
+
+function managedWebServerToml(input) {
+  const webServer = { ...DEFAULT_WEBSERVER, ...asObject(input) };
+  const port = Number.isFinite(Number(webServer.port)) ? Math.trunc(Number(webServer.port)) : 7400;
+  const lines = [
+    '# FrpcDeck 管理接口（模板未声明 [webServer] 时自动追加）',
+    '[webServer]',
+    `addr = ${JSON.stringify(str(webServer.addr, '127.0.0.1') || '127.0.0.1')}`,
+    `port = ${port}`,
+    `user = ${JSON.stringify(str(webServer.user))}`,
+    `password = ${JSON.stringify(str(webServer.password))}`,
+  ];
+  if (str(webServer.assetsDir)) lines.push(`assetsDir = ${JSON.stringify(str(webServer.assetsDir))}`);
+  if (bool(webServer.pprofEnable, false)) lines.push('pprofEnable = true');
+  return lines.join('\n');
 }
 
 function issue(path, message, level = 'error', label = '') {
@@ -572,6 +612,21 @@ function validateHeaders(issues, path, headers, label) {
 export function validateConfig(input) {
   const config = normalizeConfig(input);
   const issues = [];
+
+  if (config.rawTemplate.trim()) {
+    const hasWebServer = TEMPLATE_WEBSERVER.test(config.rawTemplate);
+    issues.push(
+      issue(
+        '',
+        hasWebServer
+          ? '模板模式：模板已声明 [webServer]，面板不会覆盖；请确认其地址和凭据与「管理接口」一致，否则实时状态可能不可用。'
+          : '模板模式：模板将原样保留，应用时会自动追加面板所需的 [webServer]，不会展开模板循环。',
+        'warning',
+        '模板',
+      ),
+    );
+    return issues;
+  }
 
   if (!config.serverAddr) {
     issues.push(issue('serverAddr', '请填写 frps 服务器地址', 'error', '服务器地址'));
@@ -834,6 +889,19 @@ export function parseConfigText(text, filename = '') {
   let format = '';
   let parsed;
   const warnings = [];
+
+  if (isTemplateConfig(text) && !['json', 'yaml', 'yml', 'ini'].includes(extension)) {
+    try {
+      parseToml(text);
+    } catch {
+      return {
+        config: normalizeConfig({ rawTemplate: text }),
+        raw: null,
+        format: 'template',
+        warnings: ['检测到 Go 模板语法，已启用模板模式；模板会原样保留，不会展开。'],
+      };
+    }
+  }
 
   if (extension === 'ini') {
     format = 'ini';

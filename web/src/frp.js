@@ -268,6 +268,42 @@ export function runtimeProxyMap(runtimeProxies = []) {
   return map;
 }
 
+function splitHostPort(value) {
+  const text = String(value || '');
+  if (!text) return { host: '', port: undefined };
+  if (text.startsWith('[')) {
+    const end = text.indexOf(']');
+    if (end > 0) {
+      const host = text.slice(1, end);
+      const port = text.slice(end + 1).replace(/^:/, '');
+      return { host, port: port ? Number(port) : undefined };
+    }
+  }
+  const index = text.lastIndexOf(':');
+  if (index < 0) return { host: text, port: undefined };
+  return {
+    host: text.slice(0, index),
+    port: Number(text.slice(index + 1)) || undefined,
+  };
+}
+
+export function runtimeProxyToDisplay(proxy = {}) {
+  const local = splitHostPort(proxy.local_addr);
+  const remote = splitHostPort(proxy.remote_addr);
+  return {
+    ...proxy,
+    name: proxy.name || '',
+    type: proxy.type || 'tcp',
+    enabled: proxy.status !== 'disabled',
+    localIP: local.host,
+    localPort: local.port,
+    remotePort: remote.port,
+    remoteAddr: proxy.remote_addr || '',
+    customDomains: Array.isArray(proxy.custom_domains) ? proxy.custom_domains : [],
+    _runtime: true,
+  };
+}
+
 export function proxyRuntimeStatus(proxy, runtimeMap) {
   if (!proxy.enabled) return 'disabled';
   const live = runtimeMap.get(proxy.name);

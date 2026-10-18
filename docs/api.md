@@ -64,8 +64,8 @@ FrpcDeck 的所有接口都在 `/api` 下。除健康检查、登录、初始化
 | GET | `/api/config/toml` | 返回 `text/plain` 的运行配置 |
 | GET | `/api/config/download?format=toml\|json` | 下载配置 |
 | POST | `/api/config/validate` | 校验草稿，返回 issues / TOML / verify 结果 |
-| POST | `/api/config/import` | 解析 TOML/YAML/JSON/INI |
-| PUT | `/api/config/raw` | 直接应用 TOML 文本 |
+| POST | `/api/config/import` | 解析 TOML/YAML/JSON/INI；检测到 Go template 时返回模板模式 |
+| PUT | `/api/config/raw` | 直接应用 TOML 或 Go template 文本 |
 | POST | `/api/config/reset` | 重置配置，body 必须 `{"confirm":"RESET"}` |
 
 `PUT /api/config` 的返回：
@@ -91,6 +91,24 @@ FrpcDeck 的所有接口都在 `/api` 下。除健康检查、登录、初始化
   "content": "serverAddr = \"frps.example.com\"\n"
 }
 ```
+
+如果文件包含 frp Go template（例如 `range` + `parseNumberRangePair`）且无法按普通 TOML 解析，返回：
+
+```json
+{
+  "format": "template",
+  "config": {
+    "rawTemplate": "{{- range ... }}\n..."
+  },
+  "warnings": ["检测到 Go 模板语法，已启用模板模式；模板会原样保留，不会展开。"],
+  "issues": [{"level": "warning", "message": "模板模式：..."}],
+  "toml": "{{- range ... }}\n...\n[webServer]\n..."
+}
+```
+
+`config.rawTemplate` 保存原始模板；`toml` 是应用时实际写入的内容，如果模板没有声明 `[webServer]`，会包含自动追加的管理接口。模板模式不会展开代理，代理数量只能从 `/api/runtime` 获取。
+
+`PUT /api/config` 可以直接提交带 `rawTemplate` 的 config 对象；普通结构化配置继续使用 `proxies` / `visitors` 字段。
 
 ### 运行状态
 

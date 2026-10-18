@@ -51,7 +51,7 @@
           v-if="!isRunning"
           type="button"
           class="btn btn-primary"
-          :disabled="store.busy || !store.config?.serverAddr"
+          :disabled="store.busy || (!store.config?.serverAddr && !templateMode)"
           @click="runAction('start')"
         >
           <Play :size="16" />
@@ -79,12 +79,12 @@
         </button>
         <RouterLink to="/connection" class="btn btn-ghost hero-config-btn">
           <SlidersHorizontal :size="15" />
-          <span>连接配置</span>
+          <span>{{ templateMode ? '编辑模板' : '连接配置' }}</span>
         </RouterLink>
       </div>
     </section>
 
-    <section v-if="!store.config?.serverAddr" class="onboarding-card card">
+    <section v-if="!store.config?.serverAddr && !templateMode" class="onboarding-card card">
       <div class="onboarding-icon"><Sparkles :size="22" /></div>
       <div class="onboarding-copy">
         <h3>三步开始使用 FrpcDeck</h3>
@@ -109,6 +109,18 @@
       </div>
     </section>
 
+    <section v-if="templateMode" class="onboarding-card card template-dashboard-card">
+      <div class="onboarding-icon"><FileCode2 :size="22" /></div>
+      <div class="onboarding-copy">
+        <h3>模板模式已启用</h3>
+        <p>frpc 会在启动时执行 Go 模板并生成代理。面板不会展开模板，代理和访问器请在模板中维护。</p>
+      </div>
+      <RouterLink to="/connection" class="btn btn-secondary">
+        <SlidersHorizontal :size="15" />
+        编辑模板
+      </RouterLink>
+    </section>
+
     <section class="stat-grid">
       <article class="stat-card">
         <span class="stat-icon tone-blue"><Waypoints :size="19" /></span>
@@ -130,8 +142,8 @@
         <span class="stat-icon tone-purple"><ArrowLeftRight :size="19" /></span>
         <div class="stat-copy">
           <span class="stat-label">访问器</span>
-          <strong class="stat-value">{{ visitorCount }}</strong>
-          <span class="stat-sub">STCP / XTCP 入口</span>
+          <strong class="stat-value">{{ templateMode ? '—' : visitorCount }}</strong>
+          <span class="stat-sub">{{ templateMode ? '由模板定义' : 'STCP / XTCP 入口' }}</span>
         </div>
       </article>
       <article class="stat-card">
@@ -183,6 +195,17 @@
             <ChevronRight :size="15" class="proxy-chevron" />
           </button>
         </div>
+        <EmptyState
+          v-else-if="templateMode"
+          compact
+          title="等待模板生成代理"
+          description="应用模板并启动 frpc 后，这里会显示运行时生成的代理。"
+        >
+          <RouterLink to="/connection" class="btn btn-primary btn-sm">
+            <FileCode2 :size="15" />
+            编辑模板
+          </RouterLink>
+        </EmptyState>
         <EmptyState
           v-else
           compact
@@ -259,7 +282,7 @@
             </div>
             <div class="health-row">
               <span>配置格式</span>
-              <span class="text-muted">TOML</span>
+              <span class="text-muted">{{ templateMode ? 'Go template' : 'TOML' }}</span>
             </div>
           </div>
           <div class="health-actions">
@@ -268,7 +291,7 @@
               <span>{{ tomlLoading ? '生成中…' : '查看 TOML' }}</span>
             </button>
             <RouterLink to="/connection" class="btn btn-ghost btn-sm">
-              编辑配置
+              {{ templateMode ? '编辑模板' : '编辑配置' }}
             </RouterLink>
           </div>
         </section>
@@ -281,7 +304,12 @@
             </div>
           </header>
           <div class="quick-list">
-            <button type="button" class="quick-item" @click="createProxy">
+            <RouterLink v-if="templateMode" to="/connection" class="quick-item">
+              <span class="quick-icon tone-green"><FileCode2 :size="16" /></span>
+              <span><strong>编辑模板</strong><small>Go template / 端口范围</small></span>
+              <ChevronRight :size="14" />
+            </RouterLink>
+            <button v-else type="button" class="quick-item" @click="createProxy">
               <span class="quick-icon tone-green"><Plus :size="16" /></span>
               <span><strong>新建代理</strong><small>TCP、HTTP、STCP…</small></span>
               <ChevronRight :size="14" />
@@ -398,6 +426,7 @@ import {
   proxyMeta,
   proxyRuntimeStatus,
   runtimeProxyMap,
+  runtimeProxyToDisplay,
   statusOf,
 } from '@/frp';
 import { stripLogTimestamp } from '@/utils';
@@ -409,10 +438,13 @@ const toml = ref('');
 const tomlLoading = ref(false);
 let timer = null;
 
-const proxyCount = computed(() => store.config?.proxies?.length || 0);
+const templateMode = computed(() => Boolean(store.config?.rawTemplate));
+const runtimeProxies = computed(() => (store.runtime?.proxies || []).map(runtimeProxyToDisplay));
+const displaySource = computed(() => (templateMode.value ? runtimeProxies.value : store.config?.proxies || []));
+const proxyCount = computed(() => displaySource.value.length);
 const visitorCount = computed(() => store.config?.visitors?.length || 0);
 const enabledProxyCount = computed(
-  () => (store.config?.proxies || []).filter((proxy) => proxy.enabled !== false).length,
+  () => displaySource.value.filter((proxy) => proxy.enabled !== false).length,
 );
 const runningProxyCount = computed(
   () => (store.runtime?.proxies || []).filter((proxy) => proxy.status === 'running').length,
@@ -420,10 +452,10 @@ const runningProxyCount = computed(
 const isRunning = computed(() => ['running', 'starting'].includes(store.runtimeStatus));
 const runtimeAvailable = computed(() => Boolean(store.runtime?.process?.adminAvailable));
 const runtimeMap = computed(() => runtimeProxyMap(store.runtime?.proxies || []));
-const displayProxies = computed(() => (store.config?.proxies || []).slice(0, 6));
+const displayProxies = computed(() => displaySource.value.slice(0, 6));
 const typeCounts = computed(() => {
   const counts = new Map();
-  for (const proxy of store.config?.proxies || []) {
+  for (const proxy of displaySource.value) {
     const meta = proxyMeta(proxy);
     const current = counts.get(proxy.type) || { type: proxy.type, label: meta.label, color: meta.color, count: 0 };
     current.count += 1;
@@ -435,7 +467,7 @@ const logCount = computed(() => store.logs.length);
 const recentLogs = computed(() => store.logs.slice(-5));
 
 const heroState = computed(() => {
-  if (!store.config?.serverAddr) return 'unconfigured';
+  if (!store.config?.serverAddr && !templateMode.value) return 'unconfigured';
   if (store.runtimeStatus === 'error') return 'error';
   if (store.runtimeStatus === 'starting') return 'connecting';
   if (store.runtimeStatus !== 'running') return 'stopped';
@@ -484,6 +516,7 @@ const heroDesc = computed(() => {
   return '填写 frps 地址与认证信息，即可开始管理你的内网穿透。';
 });
 const serverLabel = computed(() => {
+  if (templateMode.value) return 'Go 模板模式';
   if (!store.config?.serverAddr) return '未配置 frps';
   return `${store.config.serverAddr}:${store.config.serverPort || 7000}`;
 });
@@ -515,6 +548,7 @@ function statusFor(proxy) {
 }
 
 function endpointFor(proxy) {
+  if (proxy._runtime) return proxy.remoteAddr || '模板生成';
   const live = runtimeMap.value.get(proxy.name);
   if (['tcp', 'udp'].includes(proxy.type) && Number(proxy.remotePort) === 0 && live?.remote_addr) {
     return live.remote_addr;
@@ -540,6 +574,10 @@ function createProxy() {
 }
 
 function editProxy(proxy) {
+  if (templateMode.value) {
+    router.push({ name: 'connection' });
+    return;
+  }
   router.push({ name: 'proxies', query: { edit: proxy.name } });
 }
 

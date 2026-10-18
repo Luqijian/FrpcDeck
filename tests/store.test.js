@@ -38,6 +38,27 @@ remotePort = 6001
   }
 });
 
+test('first run adopts a Go template frpc.toml without expanding it', async () => {
+  const dir = await tempDir();
+  try {
+    const template = await fs.readFile(
+      new URL('./fixtures/frpc_template.toml', import.meta.url),
+      'utf8',
+    );
+    await fs.writeFile(path.join(dir, 'frpc.toml'), template);
+    const store = await new Store(dir).init();
+    assert.equal(store.config.rawTemplate, template);
+    assert.ok(store.config.webServer.password);
+    const generated = await store.readToml();
+    assert.match(generated, /\{\{- range/);
+    assert.match(generated, /parseNumberRangePair/);
+    assert.match(generated, /\[webServer]/);
+    assert.doesNotMatch(generated, /Sunshine-TCP-47984/);
+  } finally {
+    await fs.rm(dir, { recursive: true, force: true });
+  }
+});
+
 test('corrupt config.json is quarantined and frpc.toml is used for recovery', async () => {
   const dir = await tempDir();
   try {

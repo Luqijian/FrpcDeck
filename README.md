@@ -33,6 +33,7 @@ FrpcDeck 不是 frps 服务端面板。它管理运行在内网一侧的 **frpc*
 ## 核心特性
 
 - **覆盖 frpc 客户端主要配置**：服务端连接、Token / OIDC、传输、TLS、QUIC、日志、管理接口、元数据，以及全部代理类型与 10 种插件。
+- **Go 模板模式**：兼容 frp v0.56+ 的 Go template / `parseNumberRangePair` 写法；模板原样保留，不展开循环，运行时由 frpc 执行。
 - **原生校验**：应用前执行 `frpc verify`，避免把无法启动的配置写入运行文件。
 - **实时状态**：读取 frpc 管理接口，展示连接、代理状态、PID、版本、运行时长和实际远程端口。
 - **实时日志**：SSE 日志流、级别过滤、搜索、暂停、复制、下载；支持跟随文件日志。
@@ -86,7 +87,7 @@ docker compose up -d
 docker compose up -d --build
 ```
 
-固定版本可设置 `IMAGE_TAG=1.0.0`。更多镜像与部署说明见[部署指南](docs/deployment.md)。
+固定版本可设置 `IMAGE_TAG=1.1.0`。更多镜像与部署说明见[部署指南](docs/deployment.md)。
 
 首次使用：
 
@@ -101,7 +102,7 @@ docker compose up -d --build
 | 文档 | 内容 |
 | --- | --- |
 | [部署指南](docs/deployment.md) | GHCR 公开镜像、Compose、host 网络、环境变量、反向代理、升级、备份 |
-| [配置说明](docs/configuration.md) | 字段覆盖范围、代理/插件/访问器、导入、校验 |
+| [配置说明](docs/configuration.md) | 字段覆盖范围、代理/插件/访问器、Go 模板模式、导入、校验 |
 | [架构设计](docs/architecture.md) | 模块、数据流、进程状态、安全模型 |
 | [HTTP API](docs/api.md) | REST 接口、SSE、认证、错误格式 |
 | [本地开发](docs/development.md) | 开发环境、测试、新增字段、发布流程 |

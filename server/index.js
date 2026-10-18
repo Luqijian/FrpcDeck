@@ -184,7 +184,7 @@ async function main() {
 
   setTimeout(async () => {
     if (!store.settings.autoStart) return;
-    if (!store.config.serverAddr) {
+    if (!store.config.serverAddr && !store.config.rawTemplate) {
       app.log.info('尚未配置 frps 地址，跳过 frpc 自动启动。');
       return;
     }

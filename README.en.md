@@ -33,6 +33,7 @@ One container includes the web UI, a Node service and frpc. No host Node.js inst
 ## Features
 
 - **Complete client configuration**: server connection, token / OIDC, transport, TLS, QUIC, logging, admin API, metadata, every proxy type and 10 plugins.
+- **Go template mode**: accepts frp v0.56+ Go templates and `parseNumberRangePair`, preserving the source verbatim instead of expanding loops.
 - **Native validation**: runs `frpc verify` before writing or applying a configuration.
 - **Live runtime**: proxy status, connection state, PID, frpc version, uptime and assigned remote ports from frpc's admin API.
 - **Streaming logs**: SSE log stream, level filters, search, pause, copy, download, file-log tailing.
@@ -84,7 +85,7 @@ Build from source (for development or a custom frp version):
 docker compose up -d --build
 ```
 
-Pin a release with `IMAGE_TAG=1.0.0`. See the [deployment guide](docs/deployment.md) for image tags and hardening.
+Pin a release with `IMAGE_TAG=1.1.0`. See the [deployment guide](docs/deployment.md) for image tags and hardening.
 
 Then:
 
@@ -101,7 +102,7 @@ The detailed documentation is currently written in Chinese; English translations
 | Document | Content |
 | --- | --- |
 | [Deployment](docs/deployment.md) | Public GHCR image, Compose, host networking, environment variables, reverse proxy, upgrades |
-| [Configuration](docs/configuration.md) | Supported fields, proxy types, plugins, visitors, import rules |
+| [Configuration](docs/configuration.md) | Supported fields, proxy types, plugins, visitors, Go template mode, import rules |
 | [Architecture](docs/architecture.md) | Backend/frontend modules, data flow, process lifecycle, security model |
 | [HTTP API](docs/api.md) | REST endpoints, SSE, authentication, error schema |
 | [Development](docs/development.md) | Local setup, tests, adding fields, release checklist |

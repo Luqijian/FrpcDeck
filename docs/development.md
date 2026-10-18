@@ -80,7 +80,8 @@ pnpm test
 包含：
 
 - 配置生成、官方完整示例往返、导入、校验；
-- 数据目录首次导入、损坏恢复、备份；
+- Go template 原文保留、`[webServer]` 注入与幂等；
+- 数据目录首次导入、模板首次导入、损坏恢复、备份；
 - API 集成测试（会启动临时 Node 服务与临时数据目录，不依赖真实 frpc）。
 
 浏览器冒烟测试需要先启动一个实例：
@@ -111,7 +112,7 @@ pnpm test:e2e
 5. **表单**：在 `web/src/components/ProxyEditor.vue`、`VisitorEditor.vue` 或 `ConnectionPage.vue` 中添加字段。
 6. **测试**：在 `tests/config.test.js` 中加往返/校验用例；必要时更新官方示例 fixture。
 
-导入时未知字段会自动保留，所以新字段即使还没加表单，用户仍可通过 TOML 使用。
+导入时未知字段会自动保留，所以新字段即使还没加表单，用户仍可通过 TOML 使用。含 Go template 的配置会进入模板模式，原文保存在 `rawTemplate`，不会被结构化表单改写；修改模板相关行为时请同时更新 `tests/fixtures/frpc_template.toml` 和 `tests/config.test.js`。
 
 ## 代码约定
 

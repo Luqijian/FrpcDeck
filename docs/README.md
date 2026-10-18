@@ -5,7 +5,7 @@ FrpcDeck 是 frp 客户端 **frpc** 的可视化配置与运行管理面板。�
 | 文档 | 内容 |
 | --- | --- |
 | [部署指南](deployment.md) | GHCR 公开镜像、Docker Compose、host 网络、环境变量、反向代理、升级与备份 |
-| [配置说明](configuration.md) | frpc 配置覆盖范围、代理类型、插件、访问器、导入与校验 |
+| [配置说明](configuration.md) | frpc 配置覆盖范围、代理类型、插件、访问器、Go 模板模式、导入与校验 |
 | [架构设计](architecture.md) | 前后端模块、数据流、进程管理、安全模型、数据目录 |
 | [HTTP API](api.md) | REST 接口、认证、CSRF、SSE 日志、错误格式 |
 | [本地开发](development.md) | 开发环境、目录结构、测试、贡献配置字段的方式 |
