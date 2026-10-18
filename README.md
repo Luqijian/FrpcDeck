@@ -17,9 +17,9 @@
 <p align="center">
   <a href="https://github.com/Luqijian/FrpcDeck/actions/workflows/ci.yml"><img src="https://github.com/Luqijian/FrpcDeck/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="https://github.com/Luqijian/FrpcDeck/tags"><img src="https://img.shields.io/github/v/tag/Luqijian/FrpcDeck?display_name=tag" alt="Latest tag" /></a>
+  <a href="https://github.com/Luqijian/FrpcDeck/pkgs/container/frpcdeck"><img src="https://img.shields.io/badge/GHCR-ghcr.io%2Fluqijian%2Ffrpcdeck-2496ED?logo=github&logoColor=white" alt="GHCR image" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" /></a>
   <img src="https://img.shields.io/badge/frpc-0.71.1-38d9a9" alt="frp 0.71.1" />
-  <img src="https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white" alt="Docker ready" />
 </p>
 
 ![FrpcDeck 概览](docs/screenshots/dashboard.png)
@@ -53,16 +53,22 @@ FrpcDeck 不是 frps 服务端面板。它管理运行在内网一侧的 **frpc*
 
 ## 快速开始
 
-需要 Docker 24+、Docker Compose v2，以及能访问 Docker Hub / npm / GitHub Releases 的网络。
+公开镜像：**`ghcr.io/luqijian/frpcdeck:latest`**（linux/amd64、linux/arm64）
+
+需要 Docker 24+ 与 Docker Compose v2。使用预构建镜像不需要 Node、pnpm 或 frp 构建环境。
 
 ```bash
+# 可选：先拉取镜像
+docker pull ghcr.io/luqijian/frpcdeck:latest
+
 git clone https://github.com/Luqijian/FrpcDeck.git
 cd FrpcDeck
 
 cp .env.example .env
 # 编辑 .env，至少设置一个强密码：FRPC_WEBUI_PASSWORD
 
-docker compose up -d --build
+docker compose pull
+docker compose up -d
 ```
 
 打开 `http://<服务器IP>:8080`，使用 `.env` 中的用户名和密码登录。
@@ -70,8 +76,17 @@ docker compose up -d --build
 > Linux 上如果 frpc 需要访问宿主机的 `127.0.0.1` 服务，推荐使用 host 网络：
 >
 > ```bash
-> docker compose -f compose.host.yaml up -d --build
+> docker compose -f compose.host.yaml pull
+> docker compose -f compose.host.yaml up -d
 > ```
+
+从源码构建（开发或需要自定义 frp 版本时）：
+
+```bash
+docker compose up -d --build
+```
+
+固定版本可设置 `IMAGE_TAG=1.0.0`。更多镜像与部署说明见[部署指南](docs/deployment.md)。
 
 首次使用：
 

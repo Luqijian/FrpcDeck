@@ -17,9 +17,9 @@
 <p align="center">
   <a href="https://github.com/Luqijian/FrpcDeck/actions/workflows/ci.yml"><img src="https://github.com/Luqijian/FrpcDeck/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="https://github.com/Luqijian/FrpcDeck/tags"><img src="https://img.shields.io/github/v/tag/Luqijian/FrpcDeck?display_name=tag" alt="Latest tag" /></a>
+  <a href="https://github.com/Luqijian/FrpcDeck/pkgs/container/frpcdeck"><img src="https://img.shields.io/badge/GHCR-ghcr.io%2Fluqijian%2Ffrpcdeck-2496ED?logo=github&logoColor=white" alt="GHCR image" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" /></a>
   <img src="https://img.shields.io/badge/frpc-0.71.1-38d9a9" alt="frp 0.71.1" />
-  <img src="https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white" alt="Docker ready" />
 </p>
 
 ![FrpcDeck dashboard](docs/screenshots/dashboard.png)
@@ -51,16 +51,22 @@ One container includes the web UI, a Node service and frpc. No host Node.js inst
 
 ## Quick start
 
-Requirements: Docker 24+, Docker Compose v2, and access to Docker Hub, npm and GitHub Releases.
+Public image: **`ghcr.io/luqijian/frpcdeck:latest`** (linux/amd64, linux/arm64)
+
+Requirements: Docker 24+ and Docker Compose v2. No Node, pnpm or frp build environment is required when using the prebuilt image.
 
 ```bash
+# optional: pull the image first
+docker pull ghcr.io/luqijian/frpcdeck:latest
+
 git clone https://github.com/Luqijian/FrpcDeck.git
 cd FrpcDeck
 
 cp .env.example .env
 # Edit .env and set a strong FRPC_WEBUI_PASSWORD
 
-docker compose up -d --build
+docker compose pull
+docker compose up -d
 ```
 
 Open `http://<server-ip>:8080` and sign in with the credentials from `.env`.
@@ -68,8 +74,17 @@ Open `http://<server-ip>:8080` and sign in with the credentials from `.env`.
 > On Linux, if frpc must reach services on the host's `127.0.0.1`, use host networking:
 >
 > ```bash
-> docker compose -f compose.host.yaml up -d --build
+> docker compose -f compose.host.yaml pull
+> docker compose -f compose.host.yaml up -d
 > ```
+
+Build from source (for development or a custom frp version):
+
+```bash
+docker compose up -d --build
+```
+
+Pin a release with `IMAGE_TAG=1.0.0`. See the [deployment guide](docs/deployment.md) for image tags and hardening.
 
 Then:
 

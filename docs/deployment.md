@@ -6,10 +6,58 @@ FrpcDeck 以单容器运行：容器内同时包含 Node 服务、前端静态�
 
 - Linux 服务器（amd64 / arm64 / arm），或支持 Docker 的 NAS
 - Docker 24+、Docker Compose v2
-- 构建时能访问 Docker Hub、npm registry 和 GitHub Releases
+- 使用公开镜像：能访问 `ghcr.io`
+- 从源码构建：额外需要能访问 Docker Hub、npm registry 和 GitHub Releases
 - 建议至少 512 MB 可用内存、1 GB 可用磁盘
 
-如果服务器访问 GitHub 较慢，可以通过 `FRP_DOWNLOAD_BASE` 构建参数替换 frp 下载源（需同时提供校验和文件）。
+如果服务器访问 GitHub 较慢，可以通过 `FRP_DOWNLOAD_BASE` 构建参数替换 frp 下载源（需同时提供校验和文件）。使用公开镜像不需要构建，也不需要访问 GitHub。
+
+## 公开镜像
+
+FrpcDeck 提供 GHCR 公开镜像，支持 `linux/amd64` 和 `linux/arm64`：
+
+```text
+ghcr.io/luqijian/frpcdeck:latest
+ghcr.io/luqijian/frpcdeck:1.0.0
+ghcr.io/luqijian/frpcdeck:v1.0.0
+```
+
+镜像页面：<https://github.com/Luqijian/FrpcDeck/pkgs/container/frpcdeck>
+
+```bash
+docker pull ghcr.io/luqijian/frpcdeck:latest
+```
+
+### 直接 docker run
+
+Linux host 网络：
+
+```bash
+docker run -d \
+  --name frpcdeck \
+  --restart unless-stopped \
+  --network host \
+  -e FRPC_WEBUI_PASSWORD='change-me' \
+  -e TZ=Asia/Shanghai \
+  -v "$PWD/frpcdeck-data:/data" \
+  ghcr.io/luqijian/frpcdeck:latest
+```
+
+bridge 网络需要映射面板端口：
+
+```bash
+docker run -d \
+  --name frpcdeck \
+  --restart unless-stopped \
+  -p 8080:8080 \
+  --add-host host.docker.internal:host-gateway \
+  -e FRPC_WEBUI_PASSWORD='change-me' \
+  -e TZ=Asia/Shanghai \
+  -v "$PWD/frpcdeck-data:/data" \
+  ghcr.io/luqijian/frpcdeck:latest
+```
+
+> 使用预构建镜像时，`IMAGE_TAG` 控制 Compose 拉取的标签；`latest` 跟随主分支，生产环境建议固定为 `1.0.0` 或 `v1.0.0`。
 
 ## 快速开始（bridge 网络）
 
@@ -19,13 +67,23 @@ cd FrpcDeck
 
 cp .env.example .env
 # 编辑 .env，至少修改 FRPC_WEBUI_PASSWORD
+# 可选：IMAGE_TAG=1.0.0
 
-docker compose up -d --build
+docker compose pull
+docker compose up -d
 ```
 
 访问 `http://<服务器IP>:8080`，使用 `.env` 中设置的用户名和密码登录。
 
 > 必须设置 `FRPC_WEBUI_PASSWORD`。Compose 文件使用了必填变量检查，密码为空时启动会直接报错。
+>
+> `docker compose pull` 会拉取 GHCR 镜像；如果本地已有源码构建的镜像，也可以直接 `docker compose up -d`。
+
+从源码构建（开发或自定义 frp 版本）：
+
+```bash
+docker compose up -d --build
+```
 
 首次启动后：
 
@@ -46,7 +104,8 @@ docker compose up -d --build
 2. 使用 host 网络：
 
 ```bash
-docker compose -f compose.host.yaml up -d --build
+docker compose -f compose.host.yaml pull
+docker compose -f compose.host.yaml up -d
 ```
 
 host 网络下：
@@ -66,7 +125,8 @@ host 网络下：
 ```bash
 mkdir -p data
 cp /path/to/frpc.toml data/frpc.toml
-docker compose up -d --build
+docker compose pull
+docker compose up -d
 ```
 
 首次启动时，如果没有 `data/config.json`，FrpcDeck 会导入 `data/frpc.toml`，并创建一份备份到 `data/backups/`。
@@ -83,6 +143,7 @@ docker compose up -d --build
 | --- | --- | --- |
 | `FRPC_WEBUI_PASSWORD` | 无 | 管理员密码。设置后由环境变量托管，面板内不能修改；每次启动同步。未设置时首次访问进入初始化向导。 |
 | `FRPC_WEBUI_USERNAME` | `admin` | 管理员用户名。 |
+| `IMAGE_TAG` | `latest` | Compose 使用的 GHCR 镜像标签，例如 `1.0.0`。 |
 | `PORT` | `8080` | 面板监听端口（容器内）。 |
 | `HOST` | `0.0.0.0` | 面板监听地址。 |
 | `DATA_DIR` | `/data`（镜像内） | 配置、认证、备份、会话密钥的持久化目录。 |
@@ -95,6 +156,8 @@ docker compose up -d --build
 
 ## 构建参数
 
+以下参数仅在使用 `docker compose up -d --build` 从源码构建时生效。
+
 | 参数 | 默认值 | 说明 |
 | --- | --- | --- |
 | `FRP_VERSION` | `0.71.1` | 镜像内 frpc 版本。建议与 frps 版本保持一致。 |
@@ -104,10 +167,11 @@ docker compose up -d --build
 示例：
 
 ```bash
-FRP_VERSION=0.71.1 docker compose build --no-cache
+FRP_VERSION=0.71.1 IMAGE_TAG=local docker compose build --no-cache
+IMAGE_TAG=local docker compose up -d
 ```
 
-> 修改 `FRP_VERSION` 后，Compose 的镜像标签也会变化。无特殊需求时保持默认即可。
+> 镜像标签由 `IMAGE_TAG` 控制；`FRP_VERSION` 只影响构建产物。固定使用公开镜像时，无需设置 `FRP_VERSION`。
 
 ## 数据、备份与升级
 
@@ -129,8 +193,11 @@ data/
 
 ```bash
 git pull
-docker compose up -d --build
+docker compose pull
+docker compose up -d
 ```
+
+升级到固定版本：在 `.env` 中设置 `IMAGE_TAG=1.0.0`（或新版本号），然后重新执行上面的命令。
 
 - 数据在 `./data`，重建容器不会丢失。
 - 迁移服务器时，把整个 `data/` 目录复制到新服务器即可（注意权限 0600）。
@@ -185,8 +252,8 @@ ALLOWED_ORIGINS=https://frpcdeck.example.com
 
 ```bash
 DOCKER_BUILDKIT=0 docker build --network host \
-  -t frpcdeck:0.71.1 --build-arg FRP_VERSION=0.71.1 .
-docker compose -f compose.host.yaml up -d --no-build --force-recreate
+  -t ghcr.io/luqijian/frpcdeck:local --build-arg FRP_VERSION=0.71.1 .
+IMAGE_TAG=local docker compose -f compose.host.yaml up -d --no-build --force-recreate
 ```
 
 ### 面板打不开

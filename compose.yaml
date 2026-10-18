@@ -2,12 +2,12 @@ name: frpcdeck
 
 services:
   frpcdeck:
+    image: ghcr.io/luqijian/frpcdeck:${IMAGE_TAG:-latest}
     build:
       context: .
       args:
         FRP_VERSION: ${FRP_VERSION:-0.71.1}
         FRP_DOWNLOAD_BASE: ${FRP_DOWNLOAD_BASE:-https://github.com/fatedier/frp/releases/download}
-    image: frpcdeck:${FRP_VERSION:-0.71.1}
     container_name: frpcdeck
     restart: unless-stopped
     stop_grace_period: 15s

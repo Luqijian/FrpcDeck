@@ -140,14 +140,16 @@ pnpm build
 ```bash
 docker compose build
 # 或
-docker build -t frpcdeck:dev .
+docker build -t ghcr.io/luqijian/frpcdeck:dev .
 ```
 
 受限制的 Docker 环境（如 OpenWrt/iStoreOS）如果构建阶段不能解析 DNS，使用：
 
 ```bash
-DOCKER_BUILDKIT=0 docker build --network host -t frpcdeck:dev .
+DOCKER_BUILDKIT=0 docker build --network host -t ghcr.io/luqijian/frpcdeck:dev .
 ```
+
+`main` 分支和 `v*` 标签会触发 `.github/workflows/container.yml`，构建并推送 `linux/amd64` / `linux/arm64` 镜像到 GHCR，同时将包可见性设为 public。手动构建不会自动推送。
 
 ## 发布流程
 
@@ -156,7 +158,8 @@ DOCKER_BUILDKIT=0 docker build --network host -t frpcdeck:dev .
 3. 构建 Docker 镜像并做一次全新数据目录启动；
 4. 提交 `chore(release): vX.Y.Z`；
 5. 推送到 `main`，创建并推送 `vX.Y.Z` 标签；
-6. 在 GitHub Releases 中粘贴 CHANGELOG 摘要，附上镜像构建说明。
+6. GitHub Actions 会自动创建 Release 并推送 GHCR 镜像；
+7. 在 GitHub Releases 中确认发布说明与镜像标签。
 
 ## 贡献
 
