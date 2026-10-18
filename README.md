@@ -41,6 +41,7 @@ FrpcDeck 不是 frps 服务端面板。它管理运行在内网一侧的 **frpc*
 - **移动端友好**：抽屉表单、底部导航和悬浮保存栏，手机也能完成全部配置。
 - **安全**：scrypt 密码哈希、签名 HttpOnly Cookie、登录限流、CSRF 校验、CSP、敏感文件 0600。
 - **备份与迁移**：每次应用前自动备份；支持 TOML / YAML / JSON / INI 导入，保留未知字段。
+- **内置文档**：登录后直接在面板中搜索、阅读部署、配置、API 和开发文档，无需额外文档站。
 - **部署简单**：多阶段 Docker 构建，内置 frpc；支持 amd64 / arm64 / arm。
 
 ### 更多界面
@@ -52,6 +53,10 @@ FrpcDeck 不是 frps 服务端面板。它管理运行在内网一侧的 **frpc*
 | 运行日志 | 移动端 |
 | --- | --- |
 | ![日志](docs/screenshots/logs.png) | <img src="docs/screenshots/mobile-proxies.png" width="290" alt="移动端" /> |
+
+| 实例管理 | 内置文档中心 |
+| --- | --- |
+| ![实例](docs/screenshots/instances.png) | ![文档](docs/screenshots/docs.png) |
 
 ## 快速开始
 
@@ -91,7 +96,7 @@ docker compose logs frpcdeck | grep 初始密码
 docker compose up -d --build
 ```
 
-固定版本可设置 `IMAGE_TAG=3.0.0`。更多镜像与部署说明见[部署指南](docs/deployment.md)。
+固定版本可设置 `IMAGE_TAG=3.1.0`。更多镜像与部署说明见[部署指南](docs/deployment.md)。
 
 首次使用：
 
@@ -112,7 +117,7 @@ docker compose up -d --build
 | [本地开发](docs/development.md) | 开发环境、测试、新增字段、发布流程 |
 | [故障排查](docs/troubleshooting.md) | Docker、frpc、登录、日志、网络问题 |
 
-完整文档索引见 [docs/README.md](docs/README.md)。
+完整文档索引见 [docs/README.md](docs/README.md)。登录后也可以直接从侧边栏「文档」页面阅读全部文档。
 
 ## 兼容性
 

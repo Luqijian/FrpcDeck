@@ -190,6 +190,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router';
 import {
   ArrowLeftRight,
+  BookOpen,
   Check,
   ChevronRight,
   Layers,
@@ -235,6 +236,7 @@ const secondaryNav = computed(() => [
   { name: 'connection', label: '连接配置', icon: Server, dot: !store.config?.serverAddr },
   { name: 'instances', label: '实例', icon: Layers },
   { name: 'logs', label: '运行日志', icon: ScrollText, dot: store.runtimeStatus === 'error' },
+  { name: 'docs', label: '文档', icon: BookOpen },
   { name: 'settings', label: '设置', icon: Settings },
 ]);
 
@@ -245,6 +247,7 @@ const mobileNav = computed(() => [
   { name: 'connection', label: '连接', icon: Server },
   { name: 'instances', label: '实例', icon: Layers },
   { name: 'logs', label: '日志', icon: ScrollText, dot: store.runtimeStatus === 'error' },
+  { name: 'docs', label: '文档', icon: BookOpen },
   { name: 'settings', label: '设置', icon: Settings },
 ]);
 

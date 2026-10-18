@@ -157,6 +157,22 @@ test('initial password is forced to change before bootstrap', async () => {
   assert.equal(bootstrap.data.settings.autoStart, true);
 });
 
+test('documentation API lists docs and serves markdown/assets', async () => {
+  const list = await request('/api/docs');
+  assert.equal(list.response.status, 200);
+  assert.ok(list.data.docs.length >= 8);
+  assert.ok(list.data.categories.some((group) => group.name === '使用文档'));
+
+  const doc = await request('/api/docs/configuration');
+  assert.equal(doc.response.status, 200);
+  assert.match(doc.data.content, /配置/);
+  assert.equal(doc.data.slug, 'configuration');
+
+  const asset = await request('/api/docs/assets/screenshots/instances.png');
+  assert.equal(asset.response.status, 200);
+  assert.match(asset.response.headers.get('content-type') || '', /image\/png/);
+});
+
 test('config validation rejects invalid values with structured issues', async () => {
   const result = await request('/api/config/validate', {
     method: 'POST',

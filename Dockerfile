@@ -30,7 +30,7 @@ LABEL org.opencontainers.image.title="FrpcDeck" \
       org.opencontainers.image.source="https://github.com/Luqijian/FrpcDeck" \
       org.opencontainers.image.documentation="https://github.com/Luqijian/FrpcDeck#readme" \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.version="3.0.0"
+      org.opencontainers.image.version="3.1.0"
 
 RUN apk add --no-cache ca-certificates tzdata curl su-exec \
   && case "${TARGETARCH}" in \
@@ -61,7 +61,9 @@ ENV NODE_ENV=production \
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY package.json ./
 COPY LICENSE THIRD_PARTY_NOTICES.md ./
+COPY README.md README.en.md CHANGELOG.md SECURITY.md CONTRIBUTING.md CODE_OF_CONDUCT.md SUPPORT.md ./
 COPY licenses ./licenses
+COPY docs ./docs
 COPY server ./server
 COPY shared ./shared
 COPY --from=web-builder /app/dist ./dist

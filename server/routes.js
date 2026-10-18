@@ -10,6 +10,8 @@ import {
 import { SESSION_COOKIE } from './auth.js';
 import { createRequire } from 'node:module';
 import { AsyncLocalStorage } from 'node:async_hooks';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 
 const require = createRequire(import.meta.url);
 const APP_VERSION = require('../package.json').version;
@@ -78,7 +80,7 @@ function parseCookies(request) {
 }
 
 export async function registerRoutes(app, services) {
-  const { manager, auth, startedAt } = services;
+  const { manager, auth, docs, startedAt } = services;
   const instanceContext = new AsyncLocalStorage();
   const fallbackInstance = manager.current();
   const context = () => instanceContext.getStore() || {
@@ -596,6 +598,40 @@ export async function registerRoutes(app, services) {
       restartRequired: false,
       runtime: frpc.runtime(),
     };
+  });
+
+  // ---------------------------------------------------------------- docs ----
+  app.get('/api/docs', async () => docs.list());
+
+  app.get('/api/docs/assets/*', async (request, reply) => {
+    const relative = String(request.params['*'] || '');
+    const absolute = path.resolve(docs.docsRoot, relative);
+    if (!absolute.startsWith(`${docs.docsRoot}${path.sep}`)) {
+      throw apiError(404, 'asset-not-found', '文档资源不存在');
+    }
+    const extension = path.extname(absolute).toLowerCase();
+    const types = {
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+      '.svg': 'image/svg+xml',
+    };
+    try {
+      const content = await fs.readFile(absolute);
+      reply.type(types[extension] || 'application/octet-stream');
+      reply.header('Cache-Control', 'public, max-age=3600');
+      return content;
+    } catch {
+      throw apiError(404, 'asset-not-found', '文档资源不存在');
+    }
+  });
+
+  app.get('/api/docs/:slug', async (request) => {
+    const doc = await docs.read(request.params.slug);
+    if (!doc) throw apiError(404, 'doc-not-found', '文档不存在');
+    return doc;
   });
 
   // ------------------------------------------------------------- runtime ----

@@ -41,6 +41,7 @@ One container includes the web UI, a Node service and frpc. No host Node.js inst
 - **Mobile first**: bottom navigation, bottom-sheet editors and a floating apply bar; all screens work at 320 px wide.
 - **Security**: scrypt password hashing, signed HttpOnly cookies, login rate limiting, CSRF checks, CSP and 0600 sensitive files.
 - **Backups & migration**: automatic backups before each apply, plus TOML / YAML / JSON / legacy INI import with unknown fields preserved.
+- **Built-in docs**: search and read deployment, configuration, API and development docs directly in the panel.
 - **Simple deployment**: multi-stage Docker image with frpc bundled; amd64, arm64 and arm.
 
 | Proxies | Editor |
@@ -50,6 +51,10 @@ One container includes the web UI, a Node service and frpc. No host Node.js inst
 | Live logs | Mobile |
 | --- | --- |
 | ![Logs](docs/screenshots/logs.png) | <img src="docs/screenshots/mobile-proxies.png" width="290" alt="Mobile UI" /> |
+
+| Instances | Built-in docs |
+| --- | --- |
+| ![Instances](docs/screenshots/instances.png) | ![Docs](docs/screenshots/docs.png) |
 
 ## Quick start
 
@@ -89,7 +94,7 @@ Build from source (for development or a custom frp version):
 docker compose up -d --build
 ```
 
-Pin a release with `IMAGE_TAG=3.0.0`. See the [deployment guide](docs/deployment.md) for image tags and hardening.
+Pin a release with `IMAGE_TAG=3.1.0`. See the [deployment guide](docs/deployment.md) for image tags and hardening.
 
 Then:
 
@@ -112,7 +117,7 @@ The detailed documentation is currently written in Chinese; English translations
 | [Development](docs/development.md) | Local setup, tests, adding fields, release checklist |
 | [Troubleshooting](docs/troubleshooting.md) | Docker, frpc, login, logs and networking issues |
 
-Index: [docs/README.md](docs/README.md).
+Index: [docs/README.md](docs/README.md). After signing in, the same docs are available from the **Docs** page in the sidebar.
 
 ## Compatibility
 

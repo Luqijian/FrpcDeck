@@ -51,6 +51,9 @@ FrpcDeck 的所有接口都在 `/api` 下。除健康检查、登录和认证状
 | PATCH | `/api/instances/:id` | 重命名实例 |
 | DELETE | `/api/instances/:id` | 删除实例（body 需 `confirm` 为实例名或 `DELETE`） |
 | POST | `/api/instances/:id/activate` | 设置默认实例 |
+| GET | `/api/docs` | 文档列表与分类 |
+| GET | `/api/docs/:slug` | 读取一篇 Markdown 文档 |
+| GET | `/api/docs/assets/*` | 文档截图等静态资源 |
 | GET | `/api/bootstrap` | 首屏数据：当前实例、实例列表、配置、设置、运行状态、版本、警告 |
 
 登录请求：

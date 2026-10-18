@@ -19,6 +19,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Nothing yet.
 
+## [3.1.0] - 2026-10-18
+
+### Added
+
+- Built-in documentation center at **文档** in the sidebar.
+- Markdown rendering with categorized navigation, search, tables, code blocks, screenshots and internal document links.
+- Documentation API (`/api/docs`, `/api/docs/:slug`, `/api/docs/assets/*`).
+- All project docs, README files, changelog, security policy and release notes are shipped inside the container image.
+
+### Changed
+
+- Refreshed all UI screenshots for login, dashboard, proxies, editor, connection, visitors, logs, instances, mobile, auth and docs pages.
+
 ## [3.0.0] - 2026-10-18
 
 ### Added
@@ -157,7 +170,8 @@ Initial public release.
 - Sensitive configuration files are written with mode `0600`; the data directory uses `0700`.
 - The frpc admin API is bound to `127.0.0.1` by default.
 
-[Unreleased]: https://github.com/Luqijian/FrpcDeck/compare/v3.0.0...HEAD
+[Unreleased]: https://github.com/Luqijian/FrpcDeck/compare/v3.1.0...HEAD
+[3.1.0]: https://github.com/Luqijian/FrpcDeck/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/Luqijian/FrpcDeck/compare/v2.1.1...v3.0.0
 [2.1.1]: https://github.com/Luqijian/FrpcDeck/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/Luqijian/FrpcDeck/compare/v2.0.2...v2.1.0

@@ -6,6 +6,5 @@ data
 .gitignore
 .env
 *.log
-docs
 tests
 scripts

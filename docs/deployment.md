@@ -18,7 +18,7 @@ FrpcDeck 提供 GHCR 公开镜像，支持 `linux/amd64` 和 `linux/arm64`：
 
 ```text
 ghcr.io/luqijian/frpcdeck:latest
-ghcr.io/luqijian/frpcdeck:3.0.0
+ghcr.io/luqijian/frpcdeck:3.1.0
 ```
 
 镜像页面：<https://github.com/Luqijian/FrpcDeck/pkgs/container/frpcdeck>
@@ -54,7 +54,7 @@ docker run -d \
   ghcr.io/luqijian/frpcdeck:latest
 ```
 
-> 使用预构建镜像时，`IMAGE_TAG` 控制 Compose 拉取的标签；`latest` 跟随主分支，生产环境建议固定为 `3.0.0`。
+> 使用预构建镜像时，`IMAGE_TAG` 控制 Compose 拉取的标签；`latest` 跟随主分支，生产环境建议固定为 `3.1.0`。
 
 ## 快速开始（bridge 网络）
 
@@ -63,7 +63,7 @@ git clone https://github.com/Luqijian/FrpcDeck.git
 cd FrpcDeck
 
 cp .env.example .env
-# 可选：IMAGE_TAG=3.0.0
+# 可选：IMAGE_TAG=3.1.0
 
 docker compose pull
 docker compose up -d
@@ -140,7 +140,7 @@ docker compose up -d
 
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
-| `IMAGE_TAG` | `latest` | Compose 使用的 GHCR 镜像标签，例如 `3.0.0`。 |
+| `IMAGE_TAG` | `latest` | Compose 使用的 GHCR 镜像标签，例如 `3.1.0`。 |
 | `PORT` | `8080` | 面板监听端口（容器内）。 |
 | `HOST` | `0.0.0.0` | 面板监听地址。 |
 | `DATA_DIR` | `/data`（镜像内） | 配置、认证、备份、会话密钥的持久化目录。 |
@@ -202,6 +202,14 @@ IMAGE_TAG=local docker compose up -d
 
 每个 frpc 进程都会占用自己的本地管理端口，默认 7400、7401……；新建实例时会自动分配，避免冲突。
 
+## 内置文档
+
+登录后侧边栏的「文档」页面会直接展示随镜像发布的 Markdown 文档，支持分类导航、搜索、代码块、表格、截图和文档间跳转。
+
+![文档中心](screenshots/docs.png)
+
+文档内容来自仓库的 `docs/`、README、CHANGELOG、SECURITY、CONTRIBUTING 等文件；升级镜像时一起更新，不需要额外部署文档站。
+
 ## 数据、备份与升级
 
 默认数据目录是项目下的 `./data`。认证数据由所有实例共享，每个 frpc 实例拥有独立的配置、运行文件与备份：
@@ -234,7 +242,7 @@ docker compose pull
 docker compose up -d
 ```
 
-升级到固定版本：在 `.env` 中设置 `IMAGE_TAG=3.0.0`（或新版本号），然后重新执行上面的命令。
+升级到固定版本：在 `.env` 中设置 `IMAGE_TAG=3.1.0`（或新版本号），然后重新执行上面的命令。
 
 - 数据在 `./data`，重建容器不会丢失。
 - 迁移服务器时，把整个 `data/` 目录复制到新服务器即可（注意权限 0600）。

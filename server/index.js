@@ -9,6 +9,7 @@ import fastifyCompress from '@fastify/compress';
 import crypto from 'node:crypto';
 import { AuthManager } from './auth.js';
 import { InstanceManager } from './instances.js';
+import { loadDocs } from './docs.js';
 import { registerRoutes } from './routes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -95,7 +96,7 @@ async function main() {
     }
     reply.header(
       'Content-Security-Policy',
-      "default-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data: blob:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'",
+      "default-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data: blob: https:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'",
     );
     return payload;
   });
@@ -104,6 +105,7 @@ async function main() {
   await app.register(fastifyCookie);
 
   const manager = await new InstanceManager({ dataDir, frpcBin }).init();
+  const docs = await loadDocs({ projectRoot });
   const auth = await new AuthManager({
     dataDir,
     secret: await loadOrCreateSecret(dataDir),
@@ -129,6 +131,7 @@ async function main() {
   await registerRoutes(app, {
     manager,
     auth,
+    docs,
     startedAt,
     hasFrontend,
     sendIndex,

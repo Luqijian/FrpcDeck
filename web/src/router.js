@@ -50,6 +50,12 @@ const routes = [
         meta: { title: '实例', subtitle: '管理多个 frpc 进程与不同的 frps 连接' },
       },
       {
+        path: 'docs/:slug?',
+        name: 'docs',
+        component: () => import('./pages/DocsPage.vue'),
+        meta: { title: '文档', subtitle: '部署、配置、API 与开发文档' },
+      },
+      {
         path: 'logs',
         name: 'logs',
         component: () => import('./pages/LogsPage.vue'),
