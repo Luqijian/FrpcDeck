@@ -379,6 +379,7 @@ import {
   TriangleAlert,
   Wifi,
   WifiOff,
+  Waypoints,
 } from 'lucide-vue-next';
 import CodeBlock from '@/components/CodeBlock.vue';
 import EmptyState from '@/components/EmptyState.vue';

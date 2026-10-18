@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Nothing yet.
 
+## [2.0.2] - 2026-10-18
+
+### Fixed
+
+- Restored the missing icon on the dashboard **代理总数** card and the matching hero meta chip. The `Waypoints` icon component was referenced but not imported.
+
 ## [2.0.1] - 2026-10-18
 
 ### Performance
@@ -119,7 +125,8 @@ Initial public release.
 - Sensitive configuration files are written with mode `0600`; the data directory uses `0700`.
 - The frpc admin API is bound to `127.0.0.1` by default.
 
-[Unreleased]: https://github.com/Luqijian/FrpcDeck/compare/v2.0.1...HEAD
+[Unreleased]: https://github.com/Luqijian/FrpcDeck/compare/v2.0.2...HEAD
+[2.0.2]: https://github.com/Luqijian/FrpcDeck/compare/v2.0.1...v2.0.2
 [2.0.1]: https://github.com/Luqijian/FrpcDeck/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/Luqijian/FrpcDeck/compare/v1.2.0...v2.0.0
 [1.2.0]: https://github.com/Luqijian/FrpcDeck/compare/v1.1.1...v1.2.0
