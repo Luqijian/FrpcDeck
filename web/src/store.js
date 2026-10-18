@@ -13,6 +13,11 @@ function initialTheme() {
   return localStorage.getItem('frpcdeck-theme') || (prefersLight() ? 'light' : 'dark');
 }
 
+function initialEditorLayout() {
+  if (typeof window === 'undefined') return 'drawer';
+  return localStorage.getItem('frpcdeck-editor-layout') === 'modal' ? 'modal' : 'drawer';
+}
+
 export const store = reactive({
   ready: false,
   auth: {
@@ -51,6 +56,7 @@ export const store = reactive({
   lastEventAt: null,
   toasts: [],
   theme: initialTheme(),
+  editorLayout: initialEditorLayout(),
   saving: false,
   initializing: false,
   busy: false,
@@ -95,6 +101,13 @@ export function applyTheme(theme) {
 
 export function toggleTheme() {
   applyTheme(store.theme === 'dark' ? 'light' : 'dark');
+}
+
+export function setEditorLayout(layout) {
+  const next = layout === 'modal' ? 'modal' : 'drawer';
+  store.editorLayout = next;
+  localStorage.setItem('frpcdeck-editor-layout', next);
+  return next;
 }
 
 export function toast(message, type = 'info', duration = 4200) {

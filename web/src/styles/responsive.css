@@ -1102,7 +1102,8 @@
     margin-left: 53px;
   }
 
-  .theme-choices {
+  .theme-choices,
+  .layout-choices {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -1170,5 +1171,13 @@
 
   .modal-footer .btn {
     padding-inline: 8px;
+  }
+}
+
+@media (max-width: 720px) {
+  .proxy-pager-controls {
+    width: 100%;
+    margin-left: 0;
+    justify-content: space-between;
   }
 }

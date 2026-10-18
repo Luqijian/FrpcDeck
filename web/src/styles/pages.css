@@ -1601,11 +1601,44 @@ a.onboarding-step:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 12px;
   padding: 9px 15px;
   border-top: 1px solid var(--line);
   color: var(--faint);
   font-size: 9.5px;
+}
+
+.proxy-pager-controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-left: auto;
+}
+
+.pager-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--faint);
+  font-size: 9.5px;
+  white-space: nowrap;
+}
+
+.pager-select {
+  height: 26px;
+  padding: 0 5px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 10px;
+  outline: none;
+  cursor: pointer;
+}
+
+.pager-select:focus-visible {
+  border-color: var(--accent-line);
 }
 
 .proxy-pager-actions {
@@ -1617,6 +1650,12 @@ a.onboarding-step:hover {
   min-height: 26px;
   padding: 3px 9px;
   font-size: 10px;
+}
+
+.toolbar-layout {
+  flex: none;
+  width: 34px;
+  height: 34px;
 }
 
 .list-empty-card {
@@ -2868,6 +2907,52 @@ a.onboarding-step:hover {
 
 .theme-choice > svg {
   margin-left: auto;
+  color: var(--accent);
+}
+
+.layout-preference {
+  padding: 0 20px 16px;
+}
+
+.layout-preference-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.layout-preference-head strong {
+  color: var(--text-2);
+  font-size: 10.8px;
+  font-weight: 620;
+}
+
+.layout-preference-head small {
+  color: var(--faint);
+  font-size: 8.8px;
+  line-height: 1.5;
+}
+
+.layout-choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.layout-choice-icon {
+  display: grid;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.layout-choice.is-active .layout-choice-icon {
+  border-color: var(--accent-line);
   color: var(--accent);
 }
 

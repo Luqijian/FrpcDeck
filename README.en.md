@@ -88,7 +88,7 @@ Build from source (for development or a custom frp version):
 docker compose up -d --build
 ```
 
-Pin a release with `IMAGE_TAG=2.0.2`. See the [deployment guide](docs/deployment.md) for image tags and hardening.
+Pin a release with `IMAGE_TAG=2.1.0`. See the [deployment guide](docs/deployment.md) for image tags and hardening.
 
 Then:
 

@@ -19,6 +19,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Nothing yet.
 
+## [2.1.0] - 2026-10-18
+
+### Added
+
+- Proxy list page size selector: 10 / 20 / 30 / 50 / 100 rows per page. The choice is stored in the browser and resets to page 1 when changed.
+- Proxy editor placement preference: **right drawer** or **centered modal**. It can be toggled from the proxy toolbar or in **Settings → Appearance**, and is stored in the browser.
+- The same placement preference applies to create, edit and duplicate actions.
+
 ## [2.0.2] - 2026-10-18
 
 ### Fixed
@@ -125,7 +133,8 @@ Initial public release.
 - Sensitive configuration files are written with mode `0600`; the data directory uses `0700`.
 - The frpc admin API is bound to `127.0.0.1` by default.
 
-[Unreleased]: https://github.com/Luqijian/FrpcDeck/compare/v2.0.2...HEAD
+[Unreleased]: https://github.com/Luqijian/FrpcDeck/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/Luqijian/FrpcDeck/compare/v2.0.2...v2.1.0
 [2.0.2]: https://github.com/Luqijian/FrpcDeck/compare/v2.0.1...v2.0.2
 [2.0.1]: https://github.com/Luqijian/FrpcDeck/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/Luqijian/FrpcDeck/compare/v1.2.0...v2.0.0

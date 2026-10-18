@@ -23,6 +23,16 @@
           </button>
         </div>
       </div>
+      <button
+        type="button"
+        class="icon-btn toolbar-layout"
+        :title="store.editorLayout === 'drawer' ? '当前从右侧弹出，点击改为中间弹窗' : '当前为中间弹窗，点击改为右侧弹出'"
+        :aria-label="store.editorLayout === 'drawer' ? '切换为中间弹窗编辑' : '切换为右侧抽屉编辑'"
+        @click="toggleEditorLayout"
+      >
+        <PanelRight v-if="store.editorLayout === 'drawer'" :size="17" />
+        <AppWindow v-else :size="17" />
+      </button>
       <button type="button" class="btn btn-primary toolbar-add" @click="openCreate">
         <Plus :size="16" />
         <span>新建代理</span>
@@ -124,11 +134,22 @@
         <span><RefreshCw :size="13" /> 应用后自动重启 frpc</span>
         <span class="proxy-table-foot-right">状态每 4 秒同步</span>
       </div>
-      <div v-if="pageCount > 1" class="proxy-pager">
-        <span>共 {{ filteredProxies.length }} 个 · 第 {{ page }} / {{ pageCount }} 页</span>
-        <div class="proxy-pager-actions">
-          <button type="button" class="btn btn-ghost btn-sm" :disabled="page <= 1" @click="page -= 1">上一页</button>
-          <button type="button" class="btn btn-ghost btn-sm" :disabled="page >= pageCount" @click="page += 1">下一页</button>
+      <div v-if="filteredProxies.length" class="proxy-pager">
+        <span>
+          共 {{ filteredProxies.length }} 个<template v-if="pageCount > 1"> · 第 {{ page }} / {{ pageCount }} 页</template>
+        </span>
+        <div class="proxy-pager-controls">
+          <label class="pager-size">
+            每页
+            <select v-model.number="pageSize" class="pager-select" aria-label="每页显示行数">
+              <option v-for="size in PAGE_SIZES" :key="size" :value="size">{{ size }}</option>
+            </select>
+            条
+          </label>
+          <div v-if="pageCount > 1" class="proxy-pager-actions">
+            <button type="button" class="btn btn-ghost btn-sm" :disabled="page <= 1" @click="page -= 1">上一页</button>
+            <button type="button" class="btn btn-ghost btn-sm" :disabled="page >= pageCount" @click="page += 1">下一页</button>
+          </div>
         </div>
       </div>
     </div>
@@ -161,6 +182,7 @@
       :proxy="editingProxy"
       :mode="editorMode"
       :existing-names="existingNames"
+      :variant="store.editorLayout"
       @close="closeEditor"
       @save="handleSave"
     />
@@ -181,8 +203,10 @@
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
+  AppWindow,
   Copy,
   HeartPulse,
+  PanelRight,
   Pencil,
   Plus,
   RefreshCw,
@@ -211,14 +235,22 @@ import {
   runtimeProxyMap,
   statusOf,
 } from '@/frp';
-import { saveConfig, store, toast } from '@/store';
+import { saveConfig, setEditorLayout, store, toast } from '@/store';
+
+const PAGE_SIZES = [10, 20, 30, 50, 100];
+const DEFAULT_PAGE_SIZE = 20;
+
+function initialPageSize() {
+  const stored = Number(localStorage.getItem('frpcdeck-proxy-page-size'));
+  return PAGE_SIZES.includes(stored) ? stored : DEFAULT_PAGE_SIZE;
+}
 
 const route = useRoute();
 const router = useRouter();
 const query = ref('');
 const filter = ref('all');
 const page = ref(1);
-const PAGE_SIZE = 20;
+const pageSize = ref(initialPageSize());
 const editorOpen = ref(false);
 const editorMode = ref('create');
 const editingProxy = ref(null);
@@ -294,18 +326,25 @@ const filteredProxies = computed(() => {
   });
 });
 
-const pageCount = computed(() => Math.max(1, Math.ceil(filteredProxies.value.length / PAGE_SIZE)));
+const pageCount = computed(() => Math.max(1, Math.ceil(filteredProxies.value.length / pageSize.value)));
 const pagedRows = computed(() => {
-  const start = (page.value - 1) * PAGE_SIZE;
-  return filteredProxies.value.slice(start, start + PAGE_SIZE);
+  const start = (page.value - 1) * pageSize.value;
+  return filteredProxies.value.slice(start, start + pageSize.value);
 });
 
-watch([query, filter], () => {
+watch([query, filter, pageSize], () => {
   page.value = 1;
+});
+watch(pageSize, (size) => {
+  localStorage.setItem('frpcdeck-proxy-page-size', String(size));
 });
 watch(pageCount, (count) => {
   if (page.value > count) page.value = count;
 });
+
+function toggleEditorLayout() {
+  setEditorLayout(store.editorLayout === 'drawer' ? 'modal' : 'drawer');
+}
 
 const existingNames = computed(() => {
   const original = editingProxy.value?.name;
@@ -390,7 +429,7 @@ async function handleSave(proxy, options = {}) {
     else list.push(proxy);
   } else {
     list.push(proxy);
-    page.value = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+    page.value = Math.max(1, Math.ceil(list.length / pageSize.value));
   }
   closeEditor();
   if (options.apply) {

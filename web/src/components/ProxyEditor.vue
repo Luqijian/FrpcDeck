@@ -4,7 +4,7 @@
     :title="isNew ? '新建代理' : '编辑代理'"
     :subtitle="isNew ? '选择类型并填写内网服务信息，保存到草稿后应用。' : `正在编辑 ${form?.name || ''}`"
     eyebrow="代理配置"
-    variant="drawer"
+    :variant="variant"
     size="xl"
     @close="close"
   >
@@ -463,6 +463,7 @@ const props = defineProps({
   proxy: { type: Object, default: null },
   mode: { type: String, default: 'create' },
   existingNames: { type: Array, default: () => [] },
+  variant: { type: String, default: 'drawer' },
 });
 const emit = defineEmits(['close', 'save']);
 

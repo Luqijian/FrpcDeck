@@ -83,6 +83,35 @@
           </button>
         </div>
 
+        <div class="layout-preference">
+          <div class="layout-preference-head">
+            <strong>代理编辑器位置</strong>
+            <small>新建、编辑和复制代理时使用，保存到当前浏览器。</small>
+          </div>
+          <div class="layout-choices">
+            <button
+              type="button"
+              class="theme-choice layout-choice"
+              :class="{ 'is-active': store.editorLayout === 'drawer' }"
+              @click="setEditorLayout('drawer')"
+            >
+              <span class="layout-choice-icon"><PanelRight :size="18" /></span>
+              <span><strong>右侧抽屉</strong><small>保留列表上下文</small></span>
+              <Check v-if="store.editorLayout === 'drawer'" :size="15" />
+            </button>
+            <button
+              type="button"
+              class="theme-choice layout-choice"
+              :class="{ 'is-active': store.editorLayout === 'modal' }"
+              @click="setEditorLayout('modal')"
+            >
+              <span class="layout-choice-icon"><AppWindow :size="18" /></span>
+              <span><strong>中间弹窗</strong><small>更聚焦的编辑视图</small></span>
+              <Check v-if="store.editorLayout === 'modal'" :size="15" />
+            </button>
+          </div>
+        </div>
+
         <div class="switch-list settings-switch-list">
           <div class="switch-row">
             <div class="switch-copy">
@@ -282,6 +311,7 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import {
+  AppWindow,
   Check,
   ChevronRight,
   DatabaseBackup,
@@ -294,6 +324,7 @@ import {
   Loader2,
   LogOut,
   Palette,
+  PanelRight,
   Plus,
   RotateCcw,
   Trash2,
@@ -311,6 +342,7 @@ import {
   logout as doLogout,
   resetConfig,
   saveSettings,
+  setEditorLayout,
   store,
   toast,
 } from '@/store';
