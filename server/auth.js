@@ -32,21 +32,30 @@ function validateCredentials(username, password) {
 }
 
 export class AuthManager {
-  constructor({ dataDir, secret, envUsername, envPassword, cookieSecure = false }) {
+  constructor({ dataDir, secret, cookieSecure = false }) {
     this.file = path.join(dataDir, 'auth.json');
     this.secret = secret;
-    this.envUsername = String(envUsername || 'admin').trim() || 'admin';
-    this.envPassword = envPassword || '';
-    this.envManaged = Boolean(this.envPassword);
     this.cookieSecure = cookieSecure;
     this.record = null;
+    this.initialPassword = '';
     this.warnings = [];
   }
 
   async init() {
     this.record = await this.#readRecord();
-    if (this.envManaged) {
-      await this.#applyEnvCredentials();
+    if (!this.record) {
+      const password = crypto.randomBytes(18).toString('base64url');
+      this.initialPassword = password;
+      await this.setup('admin', password, 'generated', { mustChangePassword: true });
+    } else if (this.record.source === 'env' && !this.record.mustChangePassword) {
+      this.record = {
+        ...this.record,
+        source: 'migrated-env',
+        mustChangePassword: true,
+        updatedAt: new Date().toISOString(),
+      };
+      await this.#writeRecord();
+      this.warnings.push('检测到旧版环境变量密码，首次登录后必须修改密码');
     }
     return this;
   }
@@ -56,7 +65,11 @@ export class AuthManager {
   }
 
   get username() {
-    return this.record?.username || this.envUsername;
+    return this.record?.username || 'admin';
+  }
+
+  get mustChangePassword() {
+    return Boolean(this.record?.mustChangePassword);
   }
 
   get tokenVersion() {
@@ -66,8 +79,8 @@ export class AuthManager {
   status() {
     return {
       initialized: this.initialized,
-      envManaged: this.envManaged,
-      username: this.initialized ? this.record.username : this.envUsername,
+      username: this.username,
+      mustChangePassword: this.mustChangePassword,
     };
   }
 
@@ -75,37 +88,14 @@ export class AuthManager {
     try {
       const record = JSON.parse(await fs.readFile(this.file, 'utf8'));
       if (!record?.username || !record?.salt || !record?.hash) return null;
-      return record;
+      return { mustChangePassword: false, ...record };
     } catch (error) {
       if (error.code === 'ENOENT') return null;
       throw new Error(`无法读取认证信息：${error.message}`);
     }
   }
 
-  async #applyEnvCredentials() {
-    if (this.envPassword.length < 8) {
-      this.warnings.push('FRPC_WEBUI_PASSWORD 少于 8 个字符，建议使用更强的密码');
-    }
-    const username = this.envUsername;
-    const unchanged = this.record
-      && this.record.source === 'env'
-      && this.record.username === username
-      && this.#verifyHash(this.envPassword, this.record);
-    if (unchanged) return;
-
-    const salt = crypto.randomBytes(16).toString('hex');
-    this.record = {
-      version: (this.record?.version || 0) + 1,
-      username,
-      salt,
-      hash: hashPassword(this.envPassword, salt),
-      source: 'env',
-      updatedAt: new Date().toISOString(),
-    };
-    await this.#writeRecord();
-  }
-
-  async setup(username, password, source = 'ui') {
+  async setup(username, password, source = 'ui', { mustChangePassword = false } = {}) {
     if (this.initialized) throw new Error('管理员账户已经初始化');
     validateCredentials(username, password);
     const salt = crypto.randomBytes(16).toString('hex');
@@ -115,6 +105,7 @@ export class AuthManager {
       salt,
       hash: hashPassword(password, salt),
       source,
+      mustChangePassword: Boolean(mustChangePassword),
       updatedAt: new Date().toISOString(),
     };
     await this.#writeRecord();
@@ -127,29 +118,39 @@ export class AuthManager {
     const validPassword = this.#verifyHash(String(password || ''), this.record);
     const validUsername = safeEqual(String(username || ''), this.record.username);
     if (!validUsername || !validPassword) return { ok: false, reason: 'invalid' };
-    return { ok: true, username: this.record.username };
+    return {
+      ok: true,
+      username: this.record.username,
+      mustChangePassword: Boolean(this.record.mustChangePassword),
+    };
   }
 
-  async changePassword(currentPassword, nextPassword) {
-    if (this.envManaged) {
-      throw new Error('密码由 FRPC_WEBUI_PASSWORD 环境变量管理，请修改环境变量后重启容器');
-    }
+  async changeCredentials(currentPassword, username, nextPassword) {
     if (!this.record) throw new Error('管理员账户尚未初始化');
     if (!this.login(this.record.username, currentPassword).ok) {
       throw new Error('当前密码不正确');
     }
-    validateCredentials(this.record.username, nextPassword);
+    validateCredentials(username, nextPassword);
+    if (username === this.record.username && nextPassword === currentPassword) {
+      throw new Error('新密码不能与当前密码相同');
+    }
     const salt = crypto.randomBytes(16).toString('hex');
     this.record = {
       ...this.record,
       version: this.record.version + 1,
+      username,
       salt,
       hash: hashPassword(nextPassword, salt),
       source: 'ui',
+      mustChangePassword: false,
       updatedAt: new Date().toISOString(),
     };
     await this.#writeRecord();
     return this.record;
+  }
+
+  async changePassword(currentPassword, nextPassword) {
+    return this.changeCredentials(currentPassword, this.record?.username, nextPassword);
   }
 
   issueSession() {

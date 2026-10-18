@@ -63,14 +63,17 @@ docker pull ghcr.io/luqijian/frpcdeck:latest
 git clone https://github.com/Luqijian/FrpcDeck.git
 cd FrpcDeck
 
+# optional: copy .env to change port, timezone, etc.
 cp .env.example .env
-# Edit .env and set a strong FRPC_WEBUI_PASSWORD
 
 docker compose pull
 docker compose up -d
+
+# The first start prints a random administrator password to the logs.
+docker compose logs frpcdeck | grep 初始密码
 ```
 
-Open `http://<server-ip>:8080` and sign in with the credentials from `.env`.
+Open `http://<server-ip>:8080` and sign in as `admin` with the initial password from the logs. The first login forces a username/password change.
 
 > On Linux, if frpc must reach services on the host's `127.0.0.1`, use host networking:
 >
@@ -85,7 +88,7 @@ Build from source (for development or a custom frp version):
 docker compose up -d --build
 ```
 
-Pin a release with `IMAGE_TAG=1.2.0`. See the [deployment guide](docs/deployment.md) for image tags and hardening.
+Pin a release with `IMAGE_TAG=2.0.0`. See the [deployment guide](docs/deployment.md) for image tags and hardening.
 
 Then:
 
@@ -121,7 +124,8 @@ Index: [docs/README.md](docs/README.md).
 
 FrpcDeck has full control over frpc. Treat it like SSH access:
 
-- Use a strong password and restrict access to port 8080.
+- The first-start password is printed only to the container logs; change it immediately and rotate it regularly. It is never written to `frpc.toml`.
+- Restrict access to port 8080.
 - Use an HTTPS reverse proxy for any non-LAN exposure, with `COOKIE_SECURE=true` and `TRUST_PROXY=true`.
 - Never commit or share the `data/` directory; it contains tokens, secret keys and password hashes.
 - The frpc admin API listens on `127.0.0.1` by default. Keep it that way.

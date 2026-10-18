@@ -30,6 +30,15 @@ async function waitForHealth(base) {
   throw new Error('测试服务器启动超时');
 }
 
+async function waitForInitialPassword() {
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    const match = serverLog.match(/初始密码:\s*(\S+)/);
+    if (match) return match[1];
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error('未在日志中找到初始密码');
+}
+
 const port = await freePort();
 const base = `http://127.0.0.1:${port}`;
 const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'frpcdeck-test-'));
@@ -41,8 +50,6 @@ const child = spawn(process.execPath, ['server/index.js'], {
     HOST: '127.0.0.1',
     DATA_DIR: dataDir,
     FRPC_BIN: path.join(dataDir, 'missing-frpc-binary'),
-    FRPC_WEBUI_PASSWORD: '',
-    FRPC_WEBUI_USERNAME: 'admin',
     LOG_LEVEL: 'silent',
   },
   stdio: ['ignore', 'pipe', 'pipe'],
@@ -69,6 +76,7 @@ after(async () => {
 });
 
 await waitForHealth(base);
+const initialPassword = await waitForInitialPassword();
 
 let cookie = '';
 
@@ -108,8 +116,9 @@ test('health and initial auth state', async () => {
   assert.equal(health.data.frpc.available, false);
 
   const status = await request('/api/auth/status', { auth: false });
-  assert.equal(status.data.initialized, false);
+  assert.equal(status.data.initialized, true);
   assert.equal(status.data.authenticated, false);
+  assert.equal(status.data.mustChangePassword, true);
 });
 
 test('protected endpoints reject unauthenticated access and CSRF', async () => {
@@ -125,16 +134,22 @@ test('protected endpoints reject unauthenticated access and CSRF', async () => {
   assert.equal(noCsrf.response.status, 403);
 });
 
-test('first-run setup creates an administrator session', async () => {
-  const setup = await request('/api/auth/setup', {
-    method: 'POST',
-    auth: false,
-    body: { username: 'admin', password: 'testpassword' },
-  });
-  assert.equal(setup.response.status, 200);
-  assert.equal(setup.data.authenticated, true);
-  cookie = setup.setCookie.split(';')[0];
+test('initial password is forced to change before bootstrap', async () => {
+  const loginResult = await login('admin', initialPassword);
+  assert.equal(loginResult.data.mustChangePassword, true);
   assert.ok(cookie.startsWith('frpcdeck_session='));
+
+  const blocked = await request('/api/bootstrap');
+  assert.equal(blocked.response.status, 403);
+  assert.equal(blocked.data.error.code, 'password-change-required');
+
+  const changed = await request('/api/auth/credentials', {
+    method: 'POST',
+    body: { currentPassword: initialPassword, username: 'admin', password: 'testpassword' },
+  });
+  assert.equal(changed.response.status, 200);
+  assert.equal(changed.data.mustChangePassword, false);
+  cookie = changed.setCookie.split(';')[0];
 
   const bootstrap = await request('/api/bootstrap');
   assert.equal(bootstrap.response.status, 200);
@@ -336,6 +351,11 @@ test('batch port imports are normalized, editable and applied as one proxy per r
   assert.match(imported.data.toml, /\{\{- range/);
   assert.match(imported.data.toml, /parseNumberRangePair/);
   assert.match(imported.data.toml, /\[webServer]/);
+  assert.match(imported.data.toml, /password = "\{\{ \.Envs\.FRPCDECK_ADMIN_PASSWORD }}"/);
+  assert.equal(
+    imported.data.toml.includes(`password = "${before.data.config.webServer.password}"`),
+    false,
+  );
   assert.doesNotMatch(imported.data.toml, /Sunshine-TCP-47984/);
   assert.ok(imported.data.warnings.some((warning) => /批量端口/.test(warning)));
 
@@ -352,4 +372,23 @@ test('batch port imports are normalized, editable and applied as one proxy per r
   const current = await request('/api/config');
   assert.equal(current.data.config.proxies.length, 3);
   assert.match(current.data.toml, /Sunshine-UDP/);
+});
+
+test('username and password can both be changed from the WebUI API', async () => {
+  const changed = await request('/api/auth/credentials', {
+    method: 'POST',
+    body: {
+      currentPassword: 'newpassword123',
+      username: 'operator',
+      password: 'operatorpass456',
+    },
+  });
+  assert.equal(changed.response.status, 200);
+  assert.equal(changed.data.username, 'operator');
+  assert.equal(changed.data.mustChangePassword, false);
+
+  const relogin = await login('operator', 'operatorpass456');
+  assert.equal(relogin.data.username, 'operator');
+  const bootstrap = await request('/api/bootstrap');
+  assert.equal(bootstrap.response.status, 200);
 });

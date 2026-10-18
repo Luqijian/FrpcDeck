@@ -1,9 +1,11 @@
 # HTTP API
 
-FrpcDeck 的所有接口都在 `/api` 下。除健康检查、登录、初始化和认证状态外，均需要有效的会话 Cookie。
+FrpcDeck 的所有接口都在 `/api` 下。除健康检查、登录和认证状态外，均需要有效的会话 Cookie。
 
 ## 认证与请求约定
 
+- 首次启动自动生成随机管理员密码并打印到容器日志；登录响应包含 `mustChangePassword: true`。
+- 强制改密完成前，只有认证/改密接口可用，其他受保护接口返回 `403 password-change-required`。
 - 登录成功后服务端设置 `frpcdeck_session` Cookie（HttpOnly、SameSite=Lax、7 天）。
 - 修改类请求（POST/PUT/PATCH/DELETE）必须带 `X-FrpcDeck: 1` 请求头。
 - 请求带 `Origin` 时，服务端会检查其 Host 是否与当前 Host / `ALLOWED_ORIGINS` 一致。
@@ -36,24 +38,42 @@ FrpcDeck 的所有接口都在 `/api` 下。除健康检查、登录、初始化
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | GET | `/api/health` | 公开。返回应用版本、运行时长、frpc 版本 |
-| GET | `/api/auth/status` | 初始化/登录状态 |
-| POST | `/api/auth/setup` | 首次初始化管理员（仅未初始化时） |
+| GET | `/api/auth/status` | 初始化/登录/是否必须改密 |
 | POST | `/api/auth/login` | 登录 |
 | POST | `/api/auth/logout` | 清除会话 |
-| POST | `/api/auth/password` | 修改密码（环境变量托管时返回 409） |
+| POST | `/api/auth/credentials` | 修改用户名和密码（首次登录强制使用） |
+| POST | `/api/auth/password` | 仅修改密码的兼容接口 |
 | GET | `/api/bootstrap` | 首屏数据：配置、设置、运行状态、版本、警告 |
 
 登录请求：
 
 ```json
-{"username":"admin","password":"your-password"}
+{"username":"admin","password":"initial-password-from-logs"}
 ```
 
-初始化请求：
+登录响应：
 
 ```json
-{"username":"admin","password":"at-least-8-characters"}
+{
+  "initialized": true,
+  "username": "admin",
+  "mustChangePassword": true,
+  "authenticated": true,
+  "user": "admin"
+}
 ```
+
+强制改密请求：
+
+```json
+{
+  "currentPassword": "initial-password-from-logs",
+  "username": "new-admin-name",
+  "password": "new-password-at-least-8"
+}
+```
+
+`/api/auth/setup` 已废弃，始终返回 `409 already-initialized`；首次密码由服务端生成。
 
 ### 配置
 
@@ -199,9 +219,9 @@ data: {"process":{...},"proxies":[...],"visitors":[...]}
 | 200 | 成功 |
 | 400 | 请求体/配置解析错误 |
 | 401 | 未登录或会话失效 |
-| 403 | 缺少 CSRF 头或来源不允许 |
+| 403 | 缺少 CSRF 头、来源不允许或必须先修改初始密码 |
 | 404 | 资源/备份不存在 |
-| 409 | 账户已初始化、环境变量托管密码 |
+| 409 | 账户已自动初始化 |
 | 422 | 字段校验失败、frpc 拒绝配置 |
 | 429 | 登录尝试过多 |
 | 500 | 内部错误（不会返回密码/令牌） |

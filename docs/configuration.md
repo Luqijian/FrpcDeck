@@ -64,6 +64,8 @@ FrpcDeck 用结构化表单管理 frpc 配置，并在保存时生成标准 TOML
 - `log.level`、`log.maxDays`、`log.disablePrintColor`
 - `webServer.addr`、`port`、`user`、`password`、`assetsDir`、`pprofEnable`
 
+> 面板生成的 `frpc.toml` 中，`webServer.password` 使用 `{{ .Envs.FRPCDECK_ADMIN_PASSWORD }}` 模板，不包含明文；实际值只保存在受保护的 `data/config.json` 中，并在启动 frpc 时通过环境变量注入。面板登录密码另有 scrypt 哈希，保存在 `data/auth.json`。
+
 ### 高级
 
 - `start`：启动白名单

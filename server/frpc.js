@@ -5,6 +5,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
 import { promisify } from 'node:util';
+import { FRPC_ADMIN_PASSWORD_ENV } from '../shared/constants.js';
 
 const execFileAsync = promisify(execFile);
 const ANSI_PATTERN = /\u001B\[[0-?]*[ -/]*[@-~]/g;
@@ -134,12 +135,21 @@ export class FrpcManager extends EventEmitter {
     }
   }
 
+  #frpcEnv() {
+    const config = this.getConfig?.() || {};
+    return {
+      ...process.env,
+      [FRPC_ADMIN_PASSWORD_ENV]: String(config.webServer?.password || ''),
+    };
+  }
+
   async validateFile(file) {
     try {
       const { stdout, stderr } = await execFileAsync(this.bin, ['verify', '-c', file], {
         timeout: 20000,
         windowsHide: true,
         maxBuffer: 2 * 1024 * 1024,
+        env: this.#frpcEnv(),
       });
       return {
         ok: true,
@@ -195,6 +205,7 @@ export class FrpcManager extends EventEmitter {
         cwd: this.dataDir,
         windowsHide: true,
         stdio: ['ignore', 'pipe', 'pipe'],
+        env: this.#frpcEnv(),
       });
     } catch (error) {
       this.#markStartFailure(error);

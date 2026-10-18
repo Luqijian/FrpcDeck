@@ -28,18 +28,19 @@ curl http://127.0.0.1:8080/api/health
 
 ### 忘记密码
 
-- 使用环境变量管理密码（推荐）：修改 `.env` 中的 `FRPC_WEBUI_PASSWORD`，执行：
+首次启动密码在容器日志中：
 
 ```bash
-docker compose -f compose.host.yaml up -d --no-build --force-recreate
+docker compose logs frpcdeck | grep 初始密码
 ```
 
-- 未使用环境变量：停止容器，删除 `data/auth.json`，启动后会重新进入初始化向导。代理配置不会丢失。
+如果已经修改且忘记：停止容器，删除 `data/auth.json`，重新启动后会生成新的随机密码并打印到日志。代理配置不会丢失。
 
 ### 修改密码后旧会话仍有效 / 不生效
 
-- `FRPC_WEBUI_PASSWORD` 存在时，UI 不能修改密码；环境变量会在每次启动时覆盖。
-- 修改 `.env` 后必须重建容器（不是只 `restart`，因为环境变量在创建容器时注入）。
+- 用户名或密码修改会提升版本号，旧会话应立即失效。
+- 如果浏览器仍显示旧会话，刷新页面或重新登录。
+- 密码不再由环境变量管理，不需要重建容器。
 
 ### HTTPS 下登录后立刻掉线
 

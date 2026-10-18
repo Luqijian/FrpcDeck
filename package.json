@@ -1,6 +1,6 @@
 {
   "name": "frpcdeck",
-  "version": "1.2.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "description": "A modern, responsive web UI for frpc configuration, validation and runtime management.",

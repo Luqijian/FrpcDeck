@@ -21,7 +21,7 @@
           <span>FrpcDeck</span>
           <small>frpc control surface</small>
         </div>
-        <span class="login-version">v{{ store.app.version || '1.0.0' }}</span>
+        <span class="login-version">v{{ store.app.version || '2.0.0' }}</span>
       </div>
 
       <div class="login-hero">
@@ -82,12 +82,9 @@
         </div>
 
         <header class="login-card-head">
-          <span class="login-kicker">{{ isSetup ? '首次启动' : '安全登录' }}</span>
-          <h2>{{ isSetup ? '创建管理员账户' : '欢迎回来' }}</h2>
-          <p v-if="isSetup">设置面板账户后即可开始配置 frpc。所有数据只保存在你的服务器上。</p>
-          <p v-else>
-            {{ store.auth.envManaged ? '使用环境变量中配置的账户登录。' : '登录以管理你的 frpc 隧道与运行状态。' }}
-          </p>
+          <span class="login-kicker">安全登录</span>
+          <h2>欢迎回来</h2>
+          <p>登录以管理你的 frpc 隧道与运行状态。首次启动的随机密码请从容器日志获取。</p>
         </header>
 
         <form class="login-form" @submit.prevent="submit">
@@ -116,8 +113,8 @@
                 v-model="password"
                 class="input input-with-icon input-with-action"
                 :type="showPassword ? 'text' : 'password'"
-                :autocomplete="isSetup ? 'new-password' : 'current-password'"
-                :placeholder="isSetup ? '至少 8 个字符' : '输入密码'"
+                autocomplete="current-password"
+                placeholder="输入密码"
                 :disabled="submitting"
               />
               <button
@@ -132,23 +129,6 @@
             </div>
           </div>
 
-          <div v-if="isSetup" class="field">
-            <label class="field-label" for="login-confirm">确认密码</label>
-            <div class="input-wrap">
-              <ShieldCheck :size="16" class="input-icon" />
-              <input
-                id="login-confirm"
-                v-model="confirmPassword"
-                class="input input-with-icon"
-                :type="showPassword ? 'text' : 'password'"
-                autocomplete="new-password"
-                placeholder="再次输入密码"
-                :disabled="submitting"
-                @keyup.enter="submit"
-              />
-            </div>
-          </div>
-
           <Transition name="fade">
             <div v-if="error" class="login-error" role="alert">
               <AlertCircle :size="16" />
@@ -159,28 +139,24 @@
           <button type="submit" class="btn btn-primary login-submit" :disabled="submitting">
             <Loader2 v-if="submitting" :size="17" class="spin" />
             <template v-else>
-              <span>{{ isSetup ? '创建并进入控制台' : '登录控制台' }}</span>
+              <span>登录控制台</span>
               <ArrowRight :size="17" />
             </template>
             <span v-if="submitting">请稍候…</span>
           </button>
         </form>
 
-        <div v-if="store.auth.envManaged" class="login-note">
+        <div class="login-note">
           <KeyRound :size="15" />
-          <span>密码由 <code>FRPC_WEBUI_PASSWORD</code> 环境变量管理，可在容器设置中修改。</span>
+          <span>首次启动密码可通过 <code>docker compose logs frpcdeck</code> 获取，登录后必须修改。</span>
         </div>
-        <div v-else-if="isSetup" class="login-note">
+        <div class="login-note">
           <ShieldCheck :size="15" />
-          <span>密码使用 scrypt 加盐哈希保存，面板不会存储明文。</span>
-        </div>
-        <div v-else class="login-note">
-          <ShieldCheck :size="15" />
-          <span>会话仅通过 HttpOnly Cookie 传递，7 天后自动失效。</span>
+          <span>密码使用 scrypt 加盐哈希保存；会话仅通过 HttpOnly Cookie 传递。</span>
         </div>
 
         <div class="login-card-foot">
-          <span>FrpcDeck {{ store.app.version || '1.0.0' }}</span>
+          <span>FrpcDeck {{ store.app.version || '2.0.0' }}</span>
           <span>frpc {{ store.frpc.version || '0.71.1' }}</span>
         </div>
       </div>
@@ -189,7 +165,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue';
+import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   AlertCircle,
@@ -211,15 +187,13 @@ import {
   UserRound,
 } from 'lucide-vue-next';
 import BrandMark from '@/components/BrandMark.vue';
-import { login, setup, store, toggleTheme } from '@/store';
+import { login, store, toggleTheme } from '@/store';
 
 const router = useRouter();
 const route = useRoute();
 
-const isSetup = computed(() => !store.auth.initialized);
-const username = ref(isSetup.value ? 'admin' : store.auth.username || 'admin');
+const username = ref(store.auth.username || 'admin');
 const password = ref('');
-const confirmPassword = ref('');
 const showPassword = ref(false);
 const submitting = ref(false);
 const error = ref('');
@@ -241,20 +215,13 @@ async function submit() {
     error.value = '请输入密码';
     return;
   }
-  if (isSetup.value) {
-    if (password.value.length < 8) {
-      error.value = '密码至少需要 8 个字符';
-      return;
-    }
-    if (password.value !== confirmPassword.value) {
-      error.value = '两次输入的密码不一致';
-      return;
-    }
-  }
   submitting.value = true;
   try {
-    if (isSetup.value) await setup(username.value.trim(), password.value);
-    else await login(username.value.trim(), password.value);
+    await login(username.value.trim(), password.value);
+    if (store.auth.mustChangePassword) {
+      await router.replace({ name: 'change-password' });
+      return;
+    }
     const redirect = typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/')
       && !route.query.redirect.startsWith('//')
       ? route.query.redirect

@@ -1,5 +1,6 @@
 import {
   createDefaultConfig,
+  FRPC_ADMIN_PASSWORD_SENTINEL,
   generateToml,
   hasErrors,
   normalizeConfig,
@@ -18,6 +19,13 @@ const PUBLIC_PATHS = new Set([
   '/api/auth/login',
   '/api/auth/setup',
   '/api/auth/logout',
+]);
+const PASSWORD_CHANGE_PATHS = new Set([
+  '/api/auth/status',
+  '/api/auth/login',
+  '/api/auth/logout',
+  '/api/auth/password',
+  '/api/auth/credentials',
 ]);
 
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
@@ -146,6 +154,9 @@ export async function registerRoutes(app, services) {
     if (PUBLIC_PATHS.has(pathname)) return;
     const session = await getRequestSession(request);
     if (!session) throw apiError(401, 'unauthorized', '登录状态已失效，请重新登录');
+    if (auth.mustChangePassword && !PASSWORD_CHANGE_PATHS.has(pathname)) {
+      throw apiError(403, 'password-change-required', '请先修改初始密码');
+    }
     request.user = session;
   });
 
@@ -170,16 +181,8 @@ export async function registerRoutes(app, services) {
     };
   });
 
-  app.post('/api/auth/setup', async (request, reply) => {
-    if (auth.initialized) throw apiError(409, 'already-initialized', '管理员账户已经初始化');
-    const body = bodyObject(request);
-    try {
-      await auth.setup(String(body.username || '').trim(), String(body.password || ''));
-    } catch (error) {
-      throw apiError(400, 'invalid-credentials', error.message);
-    }
-    setSessionCookie(reply);
-    return { ...auth.status(), authenticated: true, user: auth.username };
+  app.post('/api/auth/setup', async () => {
+    throw apiError(409, 'already-initialized', '管理员账户已自动初始化，请使用初始密码登录');
   });
 
   app.post('/api/auth/login', async (request, reply) => {
@@ -200,7 +203,12 @@ export async function registerRoutes(app, services) {
     }
     loginAttempts.delete(limit.key);
     setSessionCookie(reply);
-    return { ...auth.status(), authenticated: true, user: auth.username };
+    return {
+      ...auth.status(),
+      authenticated: true,
+      user: auth.username,
+      mustChangePassword: result.mustChangePassword,
+    };
   });
 
   app.post('/api/auth/logout', async (request, reply) => {
@@ -208,12 +216,27 @@ export async function registerRoutes(app, services) {
     return { ok: true };
   });
 
+  app.post('/api/auth/credentials', async (request, reply) => {
+    const body = bodyObject(request);
+    const username = String(body.username || auth.username).trim();
+    try {
+      await auth.changeCredentials(
+        String(body.currentPassword || ''),
+        username,
+        String(body.password || ''),
+      );
+    } catch (error) {
+      throw apiError(400, 'credential-change-failed', error.message);
+    }
+    setSessionCookie(reply);
+    return { ...auth.status(), authenticated: true, user: auth.username };
+  });
+
   app.post('/api/auth/password', async (request, reply) => {
     const body = bodyObject(request);
     try {
       await auth.changePassword(String(body.currentPassword || ''), String(body.password || ''));
     } catch (error) {
-      if (auth.envManaged) throw apiError(409, 'env-managed', error.message);
       throw apiError(400, 'password-change-failed', error.message);
     }
     setSessionCookie(reply);
@@ -375,6 +398,9 @@ export async function registerRoutes(app, services) {
       }
     }
     config.webServer = merged;
+    if (config.webServer.password === FRPC_ADMIN_PASSWORD_SENTINEL) {
+      config.webServer.password = current.password || '';
+    }
     return config;
   }
 

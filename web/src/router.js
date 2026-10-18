@@ -10,6 +10,12 @@ const routes = [
     meta: { public: true, title: '登录' },
   },
   {
+    path: '/change-password',
+    name: 'change-password',
+    component: () => import('./pages/ChangePasswordPage.vue'),
+    meta: { title: '修改初始密码' },
+  },
+  {
     path: '/',
     component: AppShell,
     children: [
@@ -66,11 +72,19 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   if (!store.ready) await init();
   if (to.meta.public) {
-    if (to.name === 'login' && store.authenticated) return { name: 'dashboard' };
+    if (to.name === 'login' && store.authenticated) {
+      return { name: store.auth.mustChangePassword ? 'change-password' : 'dashboard' };
+    }
     return true;
   }
   if (!store.authenticated) {
     return { name: 'login', query: { redirect: to.fullPath } };
+  }
+  if (store.auth.mustChangePassword && to.name !== 'change-password') {
+    return { name: 'change-password' };
+  }
+  if (!store.auth.mustChangePassword && to.name === 'change-password') {
+    return { name: 'dashboard' };
   }
   return true;
 });

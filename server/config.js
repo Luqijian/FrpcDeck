@@ -5,6 +5,7 @@ import {
   ADDITIONAL_AUTH_SCOPES,
   AUTH_METHODS,
   BANDWIDTH_MODES,
+  FRPC_ADMIN_PASSWORD_ENV,
   HEALTH_CHECK_TYPES,
   LOG_LEVELS,
   MULTIPLEXERS,
@@ -21,6 +22,8 @@ import { batchPatternName, batchProxyNames, parsePortPairs } from '../shared/por
 import { stringifyToml } from './toml.js';
 
 const CONFIG_FORMAT_VERSION = 1;
+export const FRPC_ADMIN_PASSWORD_SENTINEL = '__FRPCDECK_ADMIN_PASSWORD_ENV__';
+const ADMIN_PASSWORD_TEMPLATE = /\{\{\s*\.Envs\.FRPCDECK_ADMIN_PASSWORD\s*\}\}/g;
 
 const DEFAULT_LOG = {
   to: 'console',
@@ -530,8 +533,12 @@ const TOML_COMMENTS = {
 
 export function generateToml(input) {
   const config = normalizeConfig(input);
+  const webServer = {
+    ...config.webServer,
+    password: `{{ .Envs.${FRPC_ADMIN_PASSWORD_ENV} }}`,
+  };
   const base = stringifyToml(
-    compactConfig({ ...config, proxies: [], visitors: [] }),
+    compactConfig({ ...config, webServer, proxies: [], visitors: [] }),
     { header: TOML_HEADER, comments: TOML_COMMENTS },
   ).trimEnd();
   const blocks = [];
@@ -961,11 +968,12 @@ export function parseConfigText(text, filename = '') {
 }
 
 function parseTomlDocument(text, warnings) {
+  const source = text.replace(ADMIN_PASSWORD_TEMPLATE, FRPC_ADMIN_PASSWORD_SENTINEL);
   try {
-    return parseToml(text);
+    return parseToml(source);
   } catch (error) {
-    if (!text.includes('{{')) throw error;
-    const extracted = parseBatchTemplates(text);
+    if (!source.includes('{{')) throw error;
+    const extracted = parseBatchTemplates(source);
     if (!extracted) {
       throw new Error('暂不支持该 Go 模板写法：仅支持 parseNumberRangePair 批量端口配置');
     }

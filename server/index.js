@@ -94,10 +94,18 @@ async function main() {
   const auth = await new AuthManager({
     dataDir,
     secret: store.secret,
-    envUsername: process.env.FRPC_WEBUI_USERNAME,
-    envPassword: process.env.FRPC_WEBUI_PASSWORD,
     cookieSecure: boolEnv(process.env.COOKIE_SECURE, false),
   }).init();
+  if (auth.initialPassword) {
+    console.warn('');
+    console.warn('============================================================');
+    console.warn(' FrpcDeck 首次启动，已生成管理员账户');
+    console.warn(` 用户名: ${auth.username}`);
+    console.warn(` 初始密码: ${auth.initialPassword}`);
+    console.warn(' 此密码只显示一次，登录后必须立即修改。');
+    console.warn('============================================================');
+    console.warn('');
+  }
 
   const frpc = new FrpcManager({
     bin: frpcBin,
@@ -154,9 +162,6 @@ async function main() {
 
   app.log.info(`FrpcDeck 已启动: http://${host === '0.0.0.0' ? 'localhost' : host}:${port}`);
   app.log.info(`数据目录: ${dataDir}`);
-  if (!auth.initialized) {
-    app.log.warn('管理员账户尚未初始化，请打开页面完成设置；也可通过 FRPC_WEBUI_PASSWORD 预先设置。');
-  }
   if (frpc.state.binAvailable) {
     app.log.info(`frpc: ${frpc.state.version} (${frpcBin})`);
   } else {

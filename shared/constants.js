@@ -22,6 +22,7 @@ export const ADDITIONAL_AUTH_SCOPES = ['HeartBeats', 'NewWorkConns'];
 export const PROXY_PROTOCOL_VERSIONS = ['v1', 'v2'];
 export const HEALTH_CHECK_TYPES = ['tcp', 'http'];
 export const MULTIPLEXERS = ['httpconnect'];
+export const FRPC_ADMIN_PASSWORD_ENV = 'FRPCDECK_ADMIN_PASSWORD';
 
 export const PLUGIN_REQUIRED_FIELDS = {
   unix_domain_socket: ['unixPath'],

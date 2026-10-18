@@ -65,14 +65,17 @@ docker pull ghcr.io/luqijian/frpcdeck:latest
 git clone https://github.com/Luqijian/FrpcDeck.git
 cd FrpcDeck
 
+# 可选：复制 .env 修改端口、时区等
 cp .env.example .env
-# 编辑 .env，至少设置一个强密码：FRPC_WEBUI_PASSWORD
 
 docker compose pull
 docker compose up -d
+
+# 首次启动会在日志中生成随机管理员密码
+docker compose logs frpcdeck | grep 初始密码
 ```
 
-打开 `http://<服务器IP>:8080`，使用 `.env` 中的用户名和密码登录。
+打开 `http://<服务器IP>:8080`，使用 `admin` 和日志中的初始密码登录。首次登录会被强制修改用户名与密码。
 
 > Linux 上如果 frpc 需要访问宿主机的 `127.0.0.1` 服务，推荐使用 host 网络：
 >
@@ -87,7 +90,7 @@ docker compose up -d
 docker compose up -d --build
 ```
 
-固定版本可设置 `IMAGE_TAG=1.2.0`。更多镜像与部署说明见[部署指南](docs/deployment.md)。
+固定版本可设置 `IMAGE_TAG=2.0.0`。更多镜像与部署说明见[部署指南](docs/deployment.md)。
 
 首次使用：
 
@@ -121,7 +124,8 @@ docker compose up -d --build
 
 FrpcDeck 拥有 frpc 的完整控制权，请像保护 SSH 一样保护它：
 
-- 设置强密码，限制 8080 端口的访问来源；
+- 首次启动密码只打印在容器日志中，登录后立即修改并定期轮换；密码不会写入 `frpc.toml`；
+- 限制 8080 端口的访问来源；
 - 公网访问必须使用 HTTPS 反向代理，并设置 `COOKIE_SECURE=true`、`TRUST_PROXY=true`；
 - 不要提交或分享 `data/` 目录（含 token、secretKey、证书路径和密码哈希）；
 - frpc 管理接口默认仅监听 `127.0.0.1`，不要直接暴露。

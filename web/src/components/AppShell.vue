@@ -57,7 +57,7 @@
           <span class="user-avatar">{{ userInitial }}</span>
           <span class="user-copy">
             <span class="user-name">{{ store.auth.username || 'admin' }}</span>
-            <span class="user-role">{{ store.auth.envManaged ? '环境变量账户' : '管理员' }}</span>
+            <span class="user-role">管理员</span>
           </span>
           <button type="button" class="icon-btn user-logout" title="退出登录" aria-label="退出登录" @click="logout">
             <LogOut :size="16" />

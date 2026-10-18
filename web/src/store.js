@@ -18,7 +18,7 @@ export const store = reactive({
   auth: {
     initialized: false,
     authenticated: false,
-    envManaged: false,
+    mustChangePassword: false,
     username: 'admin',
   },
   config: null,
@@ -143,7 +143,7 @@ export async function init() {
   try {
     const status = await api.get('/api/auth/status');
     store.auth = { ...store.auth, ...status };
-    if (status.authenticated) {
+    if (status.authenticated && !status.mustChangePassword) {
       await loadBootstrap();
     }
   } catch (error) {
@@ -173,15 +173,23 @@ async function loadBootstrap() {
 export async function login(username, password) {
   const data = await api.post('/api/auth/login', { username, password });
   store.auth = { ...store.auth, ...data, authenticated: true };
+  if (!data.mustChangePassword) await loadBootstrap();
+  return data;
+}
+
+export async function changeCredentials({ currentPassword, username, password }) {
+  const data = await api.post('/api/auth/credentials', { currentPassword, username, password });
+  store.auth = { ...store.auth, ...data, authenticated: true, user: data.username };
   await loadBootstrap();
   return data;
 }
 
-export async function setup(username, password) {
-  const data = await api.post('/api/auth/setup', { username, password });
-  store.auth = { ...store.auth, ...data, authenticated: true };
-  await loadBootstrap();
-  return data;
+export async function changePassword(currentPassword, password) {
+  return changeCredentials({
+    currentPassword,
+    username: store.auth.username,
+    password,
+  });
 }
 
 export async function logout() {
@@ -332,12 +340,6 @@ export async function saveSettings(patch) {
   const result = await api.put('/api/settings', patch);
   store.settings = result.settings;
   return result.settings;
-}
-
-export async function changePassword(currentPassword, password) {
-  const data = await api.post('/api/auth/password', { currentPassword, password });
-  store.auth = { ...store.auth, ...data, authenticated: true };
-  return data;
 }
 
 export async function runtimeAction(action) {

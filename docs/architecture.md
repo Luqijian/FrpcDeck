@@ -32,7 +32,7 @@ flowchart LR
 | `server/config.js` | 默认值、规范化、字段校验、TOML 生成、TOML/YAML/JSON/INI 导入 |
 | `server/toml.js` | 无第三方依赖的 TOML 序列化器 |
 | `server/store.js` | 数据目录、原子写入、备份、恢复、损坏配置隔离 |
-| `server/auth.js` | scrypt 密码、签名会话、环境变量密码托管、密码版本 |
+| `server/auth.js` | scrypt 密码、首次启动随机密码、强制改密、签名会话、密码版本 |
 | `shared/constants.js` | 前后端共享的代理/插件/枚举常量 |
 
 ## 前端模块
@@ -126,12 +126,13 @@ stopped ──start──▶ starting ──spawn──▶ running
 ## 安全模型
 
 - **认证**：管理员密码用 scrypt（N=16384）加盐哈希；会话是 HMAC-SHA256 签名的 HttpOnly Cookie，7 天有效。
-- **环境变量密码**：`FRPC_WEBUI_PASSWORD` 存在时，开发/容器启动会强制同步密码，面板中不能修改；密码变更会使旧会话失效。
+- **首次启动**：生成随机初始密码并打印到容器日志，记录 `mustChangePassword`；中间件只允许改密接口，直到用户修改用户名和密码。
+- **凭据管理**：用户名和密码在「设置 → 管理员账户」中修改；修改会提升密码版本并使旧会话失效。
 - **CSRF**：所有修改请求要求 `X-FrpcDeck: 1`，并检查 Origin/Host；前端 API 客户端统一附加该头。
 - **限流**：登录失败按 IP 限制（10 分钟窗口，8 次后封禁 10 分钟）。
 - **CSP / 安全头**：CSP、X-Frame-Options、nosniff、Referrer-Policy、Permissions-Policy；HTTPS 下额外发送 COOP。
 - **命令执行**：frpc 子进程通过参数数组启动，不经过 shell；配置内容只写入文件。
-- **管理接口**：frpc webServer 默认只监听 `127.0.0.1:7400`，使用随机密码；面板不允许关闭该接口。
+- **管理接口**：frpc webServer 默认只监听 `127.0.0.1:7400`，密码通过 `FRPCDECK_ADMIN_PASSWORD` 环境模板注入，不写入 `frpc.toml`。
 - **最小暴露面**：面板只提供同源 API，不启用 CORS；静态资源没有用户上传路径。
 
 ## 测试分层

@@ -4,8 +4,8 @@
 
 | Version | Supported |
 | --- | --- |
-| 1.x | Yes |
-| < 1.0 | No |
+| 2.x | Yes |
+| < 2.0 | No |
 
 FrpcDeck is a self-hosted administration panel with full control over frpc. Security depends heavily on how you deploy and expose it.
 
@@ -53,7 +53,7 @@ Out of scope:
 
 ## Secure deployment checklist
 
-- Set a strong `FRPC_WEBUI_PASSWORD`; do not rely on the setup wizard on an untrusted network.
+- On first start, retrieve the generated administrator password from the container logs and change it immediately.
 - Restrict port 8080 to trusted networks.
 - Put the panel behind an HTTPS reverse proxy before exposing it beyond a LAN.
 - Set `COOKIE_SECURE=true` and `TRUST_PROXY=true` when a reverse proxy terminates TLS.
@@ -65,6 +65,7 @@ Out of scope:
 ## Built-in protections
 
 - scrypt password hashing with per-user salts
+- Forced change of the generated first-start password
 - HMAC-signed HttpOnly session cookies with password-version revocation
 - SameSite cookies, CSRF header and Origin checks
 - Login rate limiting by client IP

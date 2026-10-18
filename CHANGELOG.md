@@ -19,6 +19,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Nothing yet.
 
+## [2.0.0] - 2026-10-18
+
+### Changed
+
+- **Breaking:** removed `FRPC_WEBUI_PASSWORD` and `FRPC_WEBUI_USERNAME`. Passwords are no longer read from environment variables.
+- First startup now generates a random administrator password, prints it once to the container log, and forces a username/password change before the panel can be used.
+- Username and password are now both editable in **Settings → Administrator account**.
+- The frpc management password is injected through the `FRPCDECK_ADMIN_PASSWORD` environment template and is no longer written in plaintext to `frpc.toml`.
+- Legacy environment-managed auth records are forced through the password-change flow on first login.
+- `/api/auth/setup` is deprecated; accounts are initialized automatically.
+
+### Security
+
+- The generated first-start password is stored only as an scrypt hash in `data/auth.json`.
+- Password/username changes increment the session version and invalidate older sessions.
+
 ## [1.2.0] - 2026-10-18
 
 ### Added
@@ -92,7 +108,8 @@ Initial public release.
 - Sensitive configuration files are written with mode `0600`; the data directory uses `0700`.
 - The frpc admin API is bound to `127.0.0.1` by default.
 
-[Unreleased]: https://github.com/Luqijian/FrpcDeck/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/Luqijian/FrpcDeck/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/Luqijian/FrpcDeck/compare/v1.2.0...v2.0.0
 [1.2.0]: https://github.com/Luqijian/FrpcDeck/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/Luqijian/FrpcDeck/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/Luqijian/FrpcDeck/compare/v1.0.0...v1.1.0

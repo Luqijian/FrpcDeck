@@ -10,13 +10,13 @@
               <p class="card-sub">用于登录 FrpcDeck 面板</p>
             </div>
           </div>
-          <span class="settings-badge">{{ store.auth.envManaged ? '环境变量' : '本地账户' }}</span>
+          <span class="settings-badge">本地账户</span>
         </header>
         <div class="settings-account-row">
           <span class="user-avatar user-avatar-lg">{{ userInitial }}</span>
           <div class="settings-account-copy">
             <strong>{{ store.auth.username }}</strong>
-            <span>{{ store.auth.envManaged ? '密码由 FRPC_WEBUI_PASSWORD 管理' : '密码使用 scrypt 加盐哈希保存' }}</span>
+            <span>密码使用 scrypt 加盐哈希保存，不会写入 frpc.toml</span>
           </div>
           <button type="button" class="btn btn-ghost btn-sm" @click="logout">
             <LogOut :size="14" />
@@ -24,12 +24,11 @@
           </button>
         </div>
 
-        <div v-if="store.auth.envManaged" class="settings-note">
-          <KeyRound :size="15" />
-          <span>当前密码来自容器环境变量，修改密码请更新 <code>FRPC_WEBUI_PASSWORD</code> 并重启容器。</span>
-        </div>
-        <form v-else class="password-form" @submit.prevent="submitPassword">
+        <form class="password-form" @submit.prevent="submitPassword">
           <div class="form-grid">
+            <FormField label="用户名" required hint="仅用于登录 FrpcDeck 面板。">
+              <input v-model="passwordForm.username" class="input" type="text" autocomplete="username" placeholder="admin" />
+            </FormField>
             <FormField label="当前密码" required>
               <input v-model="passwordForm.current" class="input" type="password" autocomplete="current-password" placeholder="输入当前密码" />
             </FormField>
@@ -45,7 +44,7 @@
             <button type="submit" class="btn btn-secondary btn-sm" :disabled="changingPassword">
               <Loader2 v-if="changingPassword" :size="14" class="spin" />
               <KeyRound v-else :size="14" />
-              更新密码
+              更新账户
             </button>
           </div>
         </form>
@@ -308,7 +307,7 @@ import ToggleSwitch from '@/components/ToggleSwitch.vue';
 import { api } from '@/api';
 import {
   applyTheme,
-  changePassword,
+  changeCredentials,
   logout as doLogout,
   resetConfig,
   saveSettings,
@@ -318,7 +317,7 @@ import {
 import { jsonClone } from '@/frp';
 
 const router = useRouter();
-const passwordForm = reactive({ current: '', next: '', confirm: '' });
+const passwordForm = reactive({ username: store.auth.username || 'admin', current: '', next: '', confirm: '' });
 const passwordError = ref('');
 const changingPassword = ref(false);
 const savingSettings = ref(false);
@@ -351,6 +350,10 @@ async function updateSetting(key, value) {
 
 async function submitPassword() {
   passwordError.value = '';
+  if (!passwordForm.username.trim()) {
+    passwordError.value = '请输入用户名';
+    return;
+  }
   if (!passwordForm.current) {
     passwordError.value = '请输入当前密码';
     return;
@@ -365,13 +368,17 @@ async function submitPassword() {
   }
   changingPassword.value = true;
   try {
-    await changePassword(passwordForm.current, passwordForm.next);
+    await changeCredentials({
+      currentPassword: passwordForm.current,
+      username: passwordForm.username.trim(),
+      password: passwordForm.next,
+    });
     passwordForm.current = '';
     passwordForm.next = '';
     passwordForm.confirm = '';
-    toast('密码已更新，其他会话已失效', 'success');
+    toast('账户已更新，其他会话已失效', 'success');
   } catch (error) {
-    passwordError.value = error.message || '修改密码失败';
+    passwordError.value = error.message || '修改账户失败';
   } finally {
     changingPassword.value = false;
   }

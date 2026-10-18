@@ -18,7 +18,7 @@ FrpcDeck 提供 GHCR 公开镜像，支持 `linux/amd64` 和 `linux/arm64`：
 
 ```text
 ghcr.io/luqijian/frpcdeck:latest
-ghcr.io/luqijian/frpcdeck:1.2.0
+ghcr.io/luqijian/frpcdeck:2.0.0
 ```
 
 镜像页面：<https://github.com/Luqijian/FrpcDeck/pkgs/container/frpcdeck>
@@ -36,7 +36,6 @@ docker run -d \
   --name frpcdeck \
   --restart unless-stopped \
   --network host \
-  -e FRPC_WEBUI_PASSWORD='change-me' \
   -e TZ=Asia/Shanghai \
   -v "$PWD/frpcdeck-data:/data" \
   ghcr.io/luqijian/frpcdeck:latest
@@ -50,13 +49,12 @@ docker run -d \
   --restart unless-stopped \
   -p 8080:8080 \
   --add-host host.docker.internal:host-gateway \
-  -e FRPC_WEBUI_PASSWORD='change-me' \
   -e TZ=Asia/Shanghai \
   -v "$PWD/frpcdeck-data:/data" \
   ghcr.io/luqijian/frpcdeck:latest
 ```
 
-> 使用预构建镜像时，`IMAGE_TAG` 控制 Compose 拉取的标签；`latest` 跟随主分支，生产环境建议固定为 `1.2.0`。
+> 使用预构建镜像时，`IMAGE_TAG` 控制 Compose 拉取的标签；`latest` 跟随主分支，生产环境建议固定为 `2.0.0`。
 
 ## 快速开始（bridge 网络）
 
@@ -65,17 +63,19 @@ git clone https://github.com/Luqijian/FrpcDeck.git
 cd FrpcDeck
 
 cp .env.example .env
-# 编辑 .env，至少修改 FRPC_WEBUI_PASSWORD
-# 可选：IMAGE_TAG=1.2.0
+# 可选：IMAGE_TAG=2.0.0
 
 docker compose pull
 docker compose up -d
+
+# 首次启动随机密码只打印在日志中
+docker compose logs frpcdeck | grep 初始密码
 ```
 
-访问 `http://<服务器IP>:8080`，使用 `.env` 中设置的用户名和密码登录。
+首次登录使用用户名 `admin` 和日志中的初始密码。登录后会强制进入账户设置页，必须修改用户名和密码；修改后的密码只保存 scrypt 哈希，不会写入 `frpc.toml`。
 
-> 必须设置 `FRPC_WEBUI_PASSWORD`。Compose 文件使用了必填变量检查，密码为空时启动会直接报错。
->
+访问 `http://<服务器IP>:8080`，使用初始管理员账户登录。
+
 > `docker compose pull` 会拉取 GHCR 镜像；如果本地已有源码构建的镜像，也可以直接 `docker compose up -d`。
 
 从源码构建（开发或自定义 frp 版本）：
@@ -140,9 +140,7 @@ docker compose up -d
 
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
-| `FRPC_WEBUI_PASSWORD` | 无 | 管理员密码。设置后由环境变量托管，面板内不能修改；每次启动同步。未设置时首次访问进入初始化向导。 |
-| `FRPC_WEBUI_USERNAME` | `admin` | 管理员用户名。 |
-| `IMAGE_TAG` | `latest` | Compose 使用的 GHCR 镜像标签，例如 `1.2.0`。 |
+| `IMAGE_TAG` | `latest` | Compose 使用的 GHCR 镜像标签，例如 `2.0.0`。 |
 | `PORT` | `8080` | 面板监听端口（容器内）。 |
 | `HOST` | `0.0.0.0` | 面板监听地址。 |
 | `DATA_DIR` | `/data`（镜像内） | 配置、认证、备份、会话密钥的持久化目录。 |
@@ -152,6 +150,22 @@ docker compose up -d
 | `ALLOWED_ORIGINS` | 空 | 反向代理改写 Host 时允许的 Origin，逗号分隔。 |
 | `TZ` | `Asia/Shanghai` | 容器时区。 |
 | `LOG_LEVEL` | `info` | Node/Fastify 日志级别。 |
+
+## 管理员账户
+
+- **不需要配置密码环境变量**。首次启动时 FrpcDeck 生成随机初始密码并打印到容器日志。
+- 查看初始密码：
+
+```bash
+docker compose logs frpcdeck | grep 初始密码
+```
+
+- 登录后会被强制修改用户名和密码；在「设置 → 管理员账户」中也可以再次修改。
+- 密码只以 scrypt 哈希保存在 `data/auth.json`，不会写入 `frpc.toml`。
+- 忘记密码时，停止容器，删除 `data/auth.json`，再启动容器；会生成新的随机密码并打印到日志。代理配置、备份和 frps 数据不会丢失。
+- 容器日志可能被采集系统保存；首次登录修改密码后，建议清理或轮换日志中的初始密码。
+
+![首次登录修改密码](screenshots/auth-forced-change.png)
 
 ## 构建参数
 
@@ -196,7 +210,7 @@ docker compose pull
 docker compose up -d
 ```
 
-升级到固定版本：在 `.env` 中设置 `IMAGE_TAG=1.2.0`（或新版本号），然后重新执行上面的命令。
+升级到固定版本：在 `.env` 中设置 `IMAGE_TAG=2.0.0`（或新版本号），然后重新执行上面的命令。
 
 - 数据在 `./data`，重建容器不会丢失。
 - 迁移服务器时，把整个 `data/` 目录复制到新服务器即可（注意权限 0600）。
@@ -278,14 +292,14 @@ IMAGE_TAG=local docker compose -f compose.host.yaml up -d --no-build --force-rec
 | frps 端口 | frpc 主动连接 frps | 出站 |
 | 代理远程端口 | 由 frps 监听，不是本机 frpc 监听 | 由 frps 负责 |
 
-面板固定启用 frpc 的 `webServer` 管理接口来读取实时状态，因此不提供关闭开关。默认只监听 `127.0.0.1:7400` 并使用随机密码；可以在「连接配置 → 管理接口」中调整，但不要直接暴露到公网。
+面板固定启用 frpc 的 `webServer` 管理接口来读取实时状态，因此不提供关闭开关。默认只监听 `127.0.0.1:7400`；管理密码通过 `FRPCDECK_ADMIN_PASSWORD` 环境模板注入，不会以明文出现在 `frpc.toml` 中。可以在「连接配置 → 管理接口」中调整监听地址，但不要直接暴露到公网。
 
 ## 安全清单
 
-- 设置强密码，并定期轮换；
+- 首次登录后立即修改随机初始密码，并定期轮换；
 - 面板不要直接暴露在公网；必须公网访问时使用 HTTPS 反向代理；
 - 不要把 `data/` 提交到 Git；
 - 限制 8080 端口的来源 IP；
 - 代理的 token、secretKey、TLS 私钥都保存在 `data/`，按服务器密钥管理；
 - 升级前备份 `data/`；
-- 如果使用环境变量管理密码，修改密码后必须重建容器。
+- 初始密码会出现在容器日志中，首次修改后注意日志留存与清理。

@@ -73,6 +73,8 @@ const baseConfig = {
 test('generateToml produces valid, parseable TOML with all nested sections', () => {
   const toml = generateToml(normalizeConfig(baseConfig));
   assert.match(toml, /\[\[proxies]]/);
+  assert.match(toml, /password = "\{\{ \.Envs\.FRPCDECK_ADMIN_PASSWORD }}"/);
+  assert.doesNotMatch(toml, /monitor-secret/);
   assert.match(toml, /\[proxies\.healthCheck]/);
   assert.match(toml, /\[\[proxies\.healthCheck\.httpHeaders]]/);
   assert.match(toml, /\[proxies\.requestHeaders\.set]/);
