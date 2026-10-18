@@ -1,0 +1,36 @@
+name: Sync release notes
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/release-notes/**"
+      - ".github/workflows/sync-release-notes.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    name: Update existing releases
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Apply release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for file in docs/release-notes/v*.md; do
+            tag="$(basename "$file" .md)"
+            if gh release view "$tag" >/dev/null 2>&1; then
+              echo "Updating release notes for ${tag}"
+              gh release edit "$tag" --notes-file "$file"
+            else
+              echo "No release exists for ${tag}; skipping"
+            fi
+          done
