@@ -64,12 +64,11 @@ const router = createRouter({
   history: createWebHistory(),
   routes,
   scrollBehavior(to, from, savedPosition) {
-    if (savedPosition) return savedPosition;
-    return { top: 0 };
+    return savedPosition || false;
   },
 });
 
-router.beforeEach(async (to) => {
+router.beforeEach(async (to, from) => {
   if (!store.ready) await init();
   if (to.meta.public) {
     if (to.name === 'login' && store.authenticated) {
@@ -85,6 +84,11 @@ router.beforeEach(async (to) => {
   }
   if (!store.auth.mustChangePassword && to.name === 'change-password') {
     return { name: 'dashboard' };
+  }
+  if (from.path !== to.path && typeof window !== 'undefined') {
+    // Do this before the next page mounts: scrolling the previous (usually
+    // smaller) page is much cheaper than scrolling a freshly rendered list.
+    window.scrollTo(0, 0);
   }
   return true;
 });

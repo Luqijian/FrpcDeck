@@ -11,7 +11,7 @@
       </span>
       <ChevronDown :size="17" class="accordion-chevron" />
     </button>
-    <div v-show="open" class="accordion-body">
+    <div v-if="open" class="accordion-body">
       <slot />
     </div>
   </div>

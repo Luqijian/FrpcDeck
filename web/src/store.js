@@ -1,4 +1,4 @@
-import { reactive } from 'vue';
+import { computed, reactive } from 'vue';
 import { api } from './api';
 
 let eventSource = null;
@@ -56,8 +56,7 @@ export const store = reactive({
   busy: false,
 
   get dirty() {
-    if (!this.config || !this.savedConfig) return false;
-    return JSON.stringify(this.config) !== JSON.stringify(this.savedConfig);
+    return dirtyState.value;
   },
 
   get initialized() {
@@ -75,6 +74,13 @@ export const store = reactive({
   get connection() {
     return this.runtime?.process?.connection || 'unknown';
   },
+});
+
+// Cache the deep comparison: `dirty` is read many times per render, but the
+// config only changes on user edits or a save.
+const dirtyState = computed(() => {
+  if (!store.config || !store.savedConfig) return false;
+  return JSON.stringify(store.config) !== JSON.stringify(store.savedConfig);
 });
 
 export function applyTheme(theme) {

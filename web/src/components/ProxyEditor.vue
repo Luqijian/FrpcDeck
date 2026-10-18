@@ -404,6 +404,7 @@
         </FormAccordion>
       </div>
     </div>
+    <div v-else class="editor-loading">正在加载代理配置…</div>
 
     <template #footer>
       <button type="button" class="btn btn-ghost" @click="close">取消</button>
@@ -469,6 +470,7 @@ const form = ref(null);
 const attempted = ref(false);
 const autoName = ref(true);
 const formTop = ref(null);
+let formFrame = 0;
 
 const isNew = computed(() => props.mode === 'create');
 const currentMeta = computed(() => TYPE_META[form.value?.type] || TYPE_META.tcp);
@@ -686,12 +688,18 @@ function close() {
   emit('close');
 }
 
+function scrollEditorTop(smooth = false) {
+  const scroller = formTop.value?.closest('.modal-body');
+  if (!scroller) return;
+  scroller.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'auto' });
+}
+
 async function save(apply) {
   if (!form.value) return;
   attempted.value = true;
   if (errorList.value.length) {
     await nextTick();
-    formTop.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    scrollEditorTop(true);
     return;
   }
   const payload = jsonClone(form.value);
@@ -717,18 +725,34 @@ async function save(apply) {
 watch(
   () => props.open,
   (open) => {
-    if (!open) return;
+    if (formFrame) {
+      cancelAnimationFrame(formFrame);
+      formFrame = 0;
+    }
+    if (!open) {
+      form.value = null;
+      return;
+    }
     attempted.value = false;
     autoName.value = props.mode === 'create';
-    if (props.proxy) {
-      form.value = ensureFormShape(jsonClone(props.proxy));
-    } else {
-      const proxy = createProxy('tcp', '');
-      proxy.name = uniqueName('tcp');
-      form.value = ensureFormShape(proxy);
-    }
-    nextTick(() => {
-      formTop.value?.scrollIntoView({ block: 'start' });
+    form.value = null;
+    const applyForm = () => {
+      if (!props.open) return;
+      if (props.proxy) {
+        form.value = ensureFormShape(jsonClone(props.proxy));
+      } else {
+        const proxy = createProxy('tcp', '');
+        proxy.name = uniqueName('tcp');
+        form.value = ensureFormShape(proxy);
+      }
+    };
+    // Paint the drawer shell first, then mount the large form. This keeps the
+    // open animation responsive even for long proxy lists.
+    formFrame = requestAnimationFrame(() => {
+      formFrame = requestAnimationFrame(() => {
+        formFrame = 0;
+        applyForm();
+      });
     });
   },
   { immediate: true },

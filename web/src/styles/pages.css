@@ -1415,6 +1415,8 @@ a.onboarding-step:hover {
   border-top: 1px solid var(--line);
   outline: none;
   cursor: pointer;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 58px;
   transition: background var(--transition), opacity var(--transition);
 }
 
@@ -1595,11 +1597,42 @@ a.onboarding-step:hover {
   font-size: 8.5px;
 }
 
+.proxy-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 15px;
+  border-top: 1px solid var(--line);
+  color: var(--faint);
+  font-size: 9.5px;
+}
+
+.proxy-pager-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.proxy-pager-actions .btn {
+  min-height: 26px;
+  padding: 3px 9px;
+  font-size: 10px;
+}
+
 .list-empty-card {
   border-radius: var(--radius-lg);
 }
 
 /* ----------------------------------------------------------- proxy editor */
+.editor-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
+  color: var(--faint);
+  font-size: 11px;
+}
+
 .proxy-editor {
   display: flex;
   flex-direction: column;

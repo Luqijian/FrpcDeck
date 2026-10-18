@@ -19,6 +19,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Nothing yet.
 
+## [2.0.1] - 2026-10-18
+
+### Performance
+
+- Proxy list is paginated at 20 rows per page; large configurations no longer render every row at once.
+- Cached the dirty-config comparison and per-proxy fingerprints instead of stringifying the whole config on every render.
+- Memoized proxy rows and status counts; off-screen rows use `content-visibility`.
+- Editor accordions only mount their form contents when opened.
+- Editor drawer paints its shell first and mounts the long form after the first frame.
+- Removed the page-level fade transition and shortened the drawer animation; reduced backdrop blur work.
+
 ## [2.0.0] - 2026-10-18
 
 ### Changed
@@ -108,7 +119,8 @@ Initial public release.
 - Sensitive configuration files are written with mode `0600`; the data directory uses `0700`.
 - The frpc admin API is bound to `127.0.0.1` by default.
 
-[Unreleased]: https://github.com/Luqijian/FrpcDeck/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/Luqijian/FrpcDeck/compare/v2.0.1...HEAD
+[2.0.1]: https://github.com/Luqijian/FrpcDeck/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/Luqijian/FrpcDeck/compare/v1.2.0...v2.0.0
 [1.2.0]: https://github.com/Luqijian/FrpcDeck/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/Luqijian/FrpcDeck/compare/v1.1.0...v1.1.1

@@ -48,71 +48,72 @@
       </div>
       <div class="proxy-rows">
         <div
-          v-for="proxy in filteredProxies"
-          :key="proxy.name"
+          v-for="row in pagedRows"
+          :key="row.proxy.name"
+          v-memo="[row]"
           class="proxy-item"
-          :class="{ 'is-disabled': !proxy.enabled }"
+          :class="{ 'is-disabled': !row.proxy.enabled }"
           role="button"
           tabindex="0"
-          @click="openEdit(proxy)"
-          @keydown.enter="openEdit(proxy)"
+          @click="openEdit(row.proxy)"
+          @keydown.enter="openEdit(row.proxy)"
         >          <div class="proxy-main">
             <span class="proxy-toggle" @click.stop>
               <ToggleSwitch
-                :model-value="proxy.enabled"
+                :model-value="row.proxy.enabled"
                 small
-                :aria-label="proxy.enabled ? '停用代理' : '启用代理'"
-                @update:model-value="proxy.enabled = $event"
+                :aria-label="row.proxy.enabled ? '停用代理' : '启用代理'"
+                @update:model-value="row.proxy.enabled = $event"
               />
             </span>
-            <span class="proxy-type-icon" :style="{ '--type-color': proxyMeta(proxy).color }">
-              <TypeIcon :type="proxy.type" :size="17" />
+            <span class="proxy-type-icon" :style="{ '--type-color': row.meta.color }">
+              <TypeIcon :type="row.proxy.type" :size="17" />
             </span>
             <span class="proxy-name-cell">
               <span class="proxy-name">
-                {{ proxy.name }}
-                <span v-if="proxy.healthCheck?.type" class="proxy-mini-badge" title="已启用健康检查">
+                {{ row.proxy.name }}
+                <span v-if="row.proxy.healthCheck?.type" class="proxy-mini-badge" title="已启用健康检查">
                   <HeartPulse :size="11" /> HC
                 </span>
               </span>
               <span class="proxy-sub">
-                <TypeBadge :type="proxy.type" />
-                <span v-if="proxy.batch" class="proxy-mini-badge batch-badge">批量 {{ batchPortCount(proxy) }}</span>
-                <span v-if="proxy.plugin?.type">{{ pluginLabel(proxy) }}</span>
-                <span v-else>{{ statusKey(proxy) === 'draft' ? '未应用草稿' : '运行在 frpc' }}</span>
+                <TypeBadge :type="row.proxy.type" />
+                <span v-if="row.proxy.batch" class="proxy-mini-badge batch-badge">批量 {{ row.batchCount }}</span>
+                <span v-if="row.plugin">{{ row.plugin }}</span>
+                <span v-else>{{ row.key === 'draft' ? '未应用草稿' : '运行在 frpc' }}</span>
               </span>
             </span>
           </div>
 
           <div class="proxy-field proxy-local">
             <span class="proxy-field-label">本地服务</span>
-            <span class="proxy-field-value input-mono">{{ proxyLocal(proxy) }}</span>
+            <span class="proxy-field-value input-mono">{{ row.local }}</span>
           </div>
 
           <div class="proxy-field proxy-remote">
             <span class="proxy-field-label">公网入口</span>
-            <span class="proxy-field-value">{{ endpointFor(proxy) }}</span>
-            <span v-if="proxy.type === 'http' || proxy.type === 'https'" class="proxy-sub-text">
-              {{ proxy.customDomains?.length > 1 ? `+${proxy.customDomains.length - 1} 个域名` : 'HTTP 域名' }}
+            <span class="proxy-field-value">{{ row.endpoint }}</span>
+            <span v-if="row.proxy.type === 'http' || row.proxy.type === 'https'" class="proxy-sub-text">
+              {{ row.proxy.customDomains?.length > 1 ? `+${row.proxy.customDomains.length - 1} 个域名` : 'HTTP 域名' }}
             </span>
-            <span v-else-if="['tcp', 'udp'].includes(proxy.type)" class="proxy-sub-text">远程端口</span>
+            <span v-else-if="['tcp', 'udp'].includes(row.proxy.type)" class="proxy-sub-text">远程端口</span>
           </div>
 
           <div class="proxy-status">
-            <span class="status-badge" :class="`tone-${statusInfo(proxy).tone}`" :title="statusTitle(proxy)">
-              <StatusDot :tone="statusInfo(proxy).tone" :pulse="statusKey(proxy) === 'running'" />
-              <span>{{ statusInfo(proxy).label }}</span>
+            <span class="status-badge" :class="`tone-${row.info.tone}`" :title="row.title">
+              <StatusDot :tone="row.info.tone" :pulse="row.key === 'running'" />
+              <span>{{ row.info.label }}</span>
             </span>
           </div>
 
           <div class="proxy-actions" @click.stop>
-            <button type="button" class="icon-btn" title="编辑" aria-label="编辑代理" @click="openEdit(proxy)">
+            <button type="button" class="icon-btn" title="编辑" aria-label="编辑代理" @click="openEdit(row.proxy)">
               <Pencil :size="15" />
             </button>
-            <button type="button" class="icon-btn" title="复制" aria-label="复制代理" @click="duplicateProxy(proxy)">
+            <button type="button" class="icon-btn" title="复制" aria-label="复制代理" @click="duplicateProxy(row.proxy)">
               <Copy :size="15" />
             </button>
-            <button type="button" class="icon-btn danger-hover" title="删除" aria-label="删除代理" @click="askDelete(proxy)">
+            <button type="button" class="icon-btn danger-hover" title="删除" aria-label="删除代理" @click="askDelete(row.proxy)">
               <Trash2 :size="15" />
             </button>
           </div>
@@ -122,6 +123,13 @@
         <span><ShieldCheck :size="13" /> 应用前由 frpc 原生校验</span>
         <span><RefreshCw :size="13" /> 应用后自动重启 frpc</span>
         <span class="proxy-table-foot-right">状态每 4 秒同步</span>
+      </div>
+      <div v-if="pageCount > 1" class="proxy-pager">
+        <span>共 {{ filteredProxies.length }} 个 · 第 {{ page }} / {{ pageCount }} 页</span>
+        <div class="proxy-pager-actions">
+          <button type="button" class="btn btn-ghost btn-sm" :disabled="page <= 1" @click="page -= 1">上一页</button>
+          <button type="button" class="btn btn-ghost btn-sm" :disabled="page >= pageCount" @click="page += 1">下一页</button>
+        </div>
       </div>
     </div>
 
@@ -209,6 +217,8 @@ const route = useRoute();
 const router = useRouter();
 const query = ref('');
 const filter = ref('all');
+const page = ref(1);
+const PAGE_SIZE = 20;
 const editorOpen = ref(false);
 const editorMode = ref('create');
 const editingProxy = ref(null);
@@ -217,48 +227,84 @@ const deleteTarget = ref(null);
 const proxies = computed(() => store.config?.proxies || []);
 const runtimeMap = computed(() => runtimeProxyMap(store.runtime?.proxies || []));
 const isRunning = computed(() => store.runtimeStatus === 'running');
+const isDirty = computed(() => store.dirty);
+const savedProxyFingerprints = computed(() => new Map(
+  (store.savedConfig?.proxies || []).map((proxy) => [proxy.name, JSON.stringify(proxy)]),
+));
+const currentProxyFingerprints = computed(() => new Map(
+  proxies.value.map((proxy) => [proxy.name, JSON.stringify(proxy)]),
+));
 const totalCount = computed(() => proxies.value.length);
 const enabledCount = computed(() => proxies.value.filter((proxy) => proxy.enabled !== false).length);
-const runningCount = computed(
-  () => proxies.value.filter((proxy) => statusKey(proxy) === 'running').length,
-);
+const allRows = computed(() => proxies.value.map((proxy) => {
+  const key = statusKey(proxy);
+  return {
+    proxy,
+    key,
+    info: statusOf(key),
+    title: statusTitle(proxy, key),
+    meta: proxyMeta(proxy),
+    local: proxyLocal(proxy),
+    endpoint: endpointFor(proxy),
+    plugin: proxy.plugin?.type ? (PLUGIN_META[proxy.plugin.type]?.label || proxy.plugin.type) : '',
+    batchCount: proxy.batch ? batchPortCount(proxy) : 0,
+  };
+}));
+const statusCounts = computed(() => allRows.value.reduce((counts, row) => {
+  if (row.key === 'running') counts.running += 1;
+  if (row.key === 'disabled') counts.disabled += 1;
+  if (row.key === 'error' || row.key === 'offline') counts.attention += 1;
+  return counts;
+}, { running: 0, disabled: 0, attention: 0 }));
+const runningCount = computed(() => statusCounts.value.running);
 
 const filters = computed(() => [
   { value: 'all', label: '全部', count: totalCount.value },
-  { value: 'running', label: '运行中', count: runningCount.value },
-  { value: 'disabled', label: '已停用', count: proxies.value.filter((proxy) => !proxy.enabled).length },
-  {
-    value: 'attention',
-    label: '异常',
-    count: proxies.value.filter((proxy) => ['error', 'offline'].includes(statusKey(proxy))).length,
-  },
+  { value: 'running', label: '运行中', count: statusCounts.value.running },
+  { value: 'disabled', label: '已停用', count: statusCounts.value.disabled },
+  { value: 'attention', label: '异常', count: statusCounts.value.attention },
 ]);
 
 const filteredProxies = computed(() => {
   const keyword = query.value.trim().toLowerCase();
-  return proxies.value.filter((proxy) => {
-    const haystack = [
-      proxy.name,
-      proxy.type,
-      proxy.localIP,
-      proxy.localPort,
-      proxy.remotePort,
-      ...(proxy.customDomains || []),
-      proxy.subdomain,
-      proxy.batch?.localPorts,
-      proxy.batch?.remotePorts,
-      proxy.batch?.namePattern,
-    ]
-      .filter(Boolean)
-      .join(' ')
-      .toLowerCase();
-    if (keyword && !haystack.includes(keyword)) return false;
-    const key = statusKey(proxy);
-    if (filter.value === 'running') return key === 'running';
-    if (filter.value === 'disabled') return key === 'disabled';
-    if (filter.value === 'attention') return ['error', 'offline'].includes(key);
+  return allRows.value.filter((row) => {
+    const proxy = row.proxy;
+    if (keyword) {
+      const haystack = [
+        proxy.name,
+        proxy.type,
+        proxy.localIP,
+        proxy.localPort,
+        proxy.remotePort,
+        ...(proxy.customDomains || []),
+        proxy.subdomain,
+        proxy.batch?.localPorts,
+        proxy.batch?.remotePorts,
+        proxy.batch?.namePattern,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      if (!haystack.includes(keyword)) return false;
+    }
+    if (filter.value === 'running') return row.key === 'running';
+    if (filter.value === 'disabled') return row.key === 'disabled';
+    if (filter.value === 'attention') return row.key === 'error' || row.key === 'offline';
     return true;
   });
+});
+
+const pageCount = computed(() => Math.max(1, Math.ceil(filteredProxies.value.length / PAGE_SIZE)));
+const pagedRows = computed(() => {
+  const start = (page.value - 1) * PAGE_SIZE;
+  return filteredProxies.value.slice(start, start + PAGE_SIZE);
+});
+
+watch([query, filter], () => {
+  page.value = 1;
+});
+watch(pageCount, (count) => {
+  if (page.value > count) page.value = count;
 });
 
 const existingNames = computed(() => {
@@ -268,31 +314,23 @@ const existingNames = computed(() => {
 
 function statusKey(proxy) {
   if (!proxy.enabled) return 'disabled';
-  if (store.dirty) {
-    const saved = store.savedConfig?.proxies?.find((item) => item.name === proxy.name);
-    if (!saved || JSON.stringify(saved) !== JSON.stringify(proxy)) return 'draft';
+  if (isDirty.value) {
+    const saved = savedProxyFingerprints.value.get(proxy.name);
+    if (!saved || saved !== currentProxyFingerprints.value.get(proxy.name)) return 'draft';
   }
   if (!isRunning.value) return store.runtimeStatus === 'error' ? 'error' : 'stopped';
   return proxyRuntimeStatus(proxy, runtimeMap.value);
 }
 
-function statusInfo(proxy) {
-  return statusOf(statusKey(proxy));
-}
-
-function statusTitle(proxy) {
+function statusTitle(proxy, key) {
   if (proxy.batch) {
     const error = batchProxyNames(proxy)
       .map((name) => runtimeMap.value.get(name)?.err)
       .find(Boolean);
-    return error || statusInfo(proxy).label;
+    return error || statusOf(key).label;
   }
   const live = runtimeMap.value.get(proxy.name);
-  return live?.err || statusInfo(proxy).label;
-}
-
-function pluginLabel(proxy) {
-  return PLUGIN_META[proxy.plugin?.type]?.label || proxy.plugin.type;
+  return live?.err || statusOf(key).label;
 }
 
 function endpointFor(proxy) {
@@ -352,6 +390,7 @@ async function handleSave(proxy, options = {}) {
     else list.push(proxy);
   } else {
     list.push(proxy);
+    page.value = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
   }
   closeEditor();
   if (options.apply) {
