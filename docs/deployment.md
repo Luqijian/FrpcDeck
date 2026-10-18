@@ -19,7 +19,6 @@ FrpcDeck 提供 GHCR 公开镜像，支持 `linux/amd64` 和 `linux/arm64`：
 ```text
 ghcr.io/luqijian/frpcdeck:latest
 ghcr.io/luqijian/frpcdeck:1.0.0
-ghcr.io/luqijian/frpcdeck:v1.0.0
 ```
 
 镜像页面：<https://github.com/Luqijian/FrpcDeck/pkgs/container/frpcdeck>
@@ -57,7 +56,7 @@ docker run -d \
   ghcr.io/luqijian/frpcdeck:latest
 ```
 
-> 使用预构建镜像时，`IMAGE_TAG` 控制 Compose 拉取的标签；`latest` 跟随主分支，生产环境建议固定为 `1.0.0` 或 `v1.0.0`。
+> 使用预构建镜像时，`IMAGE_TAG` 控制 Compose 拉取的标签；`latest` 跟随主分支，生产环境建议固定为 `1.0.0`。
 
 ## 快速开始（bridge 网络）
 

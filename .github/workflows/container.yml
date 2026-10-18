@@ -73,13 +73,13 @@ jobs:
           cache-to: type=gha,mode=max
           provenance: false
 
-      - name: Make package public
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Verify anonymous pull
         run: |
-          gh api \
-            --method PATCH \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "/user/packages/container/frpcdeck/visibility" \
-            -f visibility='public'
+          set -euo pipefail
+          token="$(curl -fsSL 'https://ghcr.io/token?scope=repository:luqijian/frpcdeck:pull' | jq -r .token)"
+          status="$(curl -sS -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer ${token}" \
+            -H 'Accept: application/vnd.oci.image.index.v1+json' \
+            'https://ghcr.io/v2/luqijian/frpcdeck/manifests/latest')"
+          echo "Anonymous manifest status: ${status}"
+          test "${status}" = "200"

@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Public multi-arch container images on GitHub Container Registry: `ghcr.io/luqijian/frpcdeck:latest` and version tags.
-- Automated GHCR publishing on main and version tags, including automatic public visibility.
+- Automated GHCR publishing on main and version tags.
 
 ### Changed
 
