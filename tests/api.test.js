@@ -104,6 +104,7 @@ test('health and initial auth state', async () => {
   const health = await request('/api/health', { auth: false });
   assert.equal(health.response.status, 200);
   assert.equal(health.data.ok, true);
+  assert.equal(health.data.version, JSON.parse(await fs.readFile(new URL('../package.json', import.meta.url), 'utf8')).version);
   assert.equal(health.data.frpc.available, false);
 
   const status = await request('/api/auth/status', { auth: false });

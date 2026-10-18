@@ -87,7 +87,7 @@ docker compose up -d
 docker compose up -d --build
 ```
 
-固定版本可设置 `IMAGE_TAG=1.1.0`。更多镜像与部署说明见[部署指南](docs/deployment.md)。
+固定版本可设置 `IMAGE_TAG=1.1.1`。更多镜像与部署说明见[部署指南](docs/deployment.md)。
 
 首次使用：
 

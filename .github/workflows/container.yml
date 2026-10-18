@@ -73,6 +73,15 @@ jobs:
           cache-to: type=gha,mode=max
           provenance: false
 
+      - name: Promote release tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -euo pipefail
+          docker buildx imagetools create \
+            --tag ghcr.io/luqijian/frpcdeck:latest \
+            --tag ghcr.io/luqijian/frpcdeck:main \
+            ghcr.io/luqijian/frpcdeck:${{ steps.version.outputs.version }}
+
       - name: Verify anonymous pull
         run: |
           set -euo pipefail

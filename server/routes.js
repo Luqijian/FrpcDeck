@@ -7,6 +7,10 @@ import {
   validateConfig,
 } from './config.js';
 import { SESSION_COOKIE } from './auth.js';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+const APP_VERSION = require('../package.json').version;
 
 const PUBLIC_PATHS = new Set([
   '/api/health',
@@ -17,7 +21,6 @@ const PUBLIC_PATHS = new Set([
 ]);
 
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
-const APP_VERSION = '1.0.0';
 
 class ApiError extends Error {
   constructor(status, code, message, details) {

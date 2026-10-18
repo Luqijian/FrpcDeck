@@ -19,6 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Nothing yet.
 
+## [1.1.1] - 2026-10-18
+
+### Fixed
+
+- The API and health endpoint now read the application version from `package.json` instead of reporting a stale hardcoded `1.0.0`.
+- Version tags now promote `latest` and `main` to the released image after the tag build completes.
+
 ## [1.1.0] - 2026-10-18
 
 ### Added
@@ -69,6 +76,7 @@ Initial public release.
 - Sensitive configuration files are written with mode `0600`; the data directory uses `0700`.
 - The frpc admin API is bound to `127.0.0.1` by default.
 
-[Unreleased]: https://github.com/Luqijian/FrpcDeck/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/Luqijian/FrpcDeck/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/Luqijian/FrpcDeck/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/Luqijian/FrpcDeck/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Luqijian/FrpcDeck/tree/v1.0.0
