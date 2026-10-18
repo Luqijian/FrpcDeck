@@ -62,18 +62,19 @@ FrpcDeck 不是 frps 服务端面板。它管理运行在内网一侧的 **frpc*
 
 公开镜像：**`ghcr.io/luqijian/frpcdeck:latest`**（linux/amd64、linux/arm64）
 
-需要 Docker 24+ 与 Docker Compose v2。使用预构建镜像不需要 Node、pnpm 或 frp 构建环境。
+需要 Docker 24+ 与 Docker Compose v2。使用预构建镜像不需要 Node、pnpm 或 frp 构建环境，也**不需要克隆仓库**。
+
+1. 新建一个空目录并进入：
 
 ```bash
-# 可选：先拉取镜像
-docker pull ghcr.io/luqijian/frpcdeck:latest
+mkdir -p ~/frpcdeck && cd ~/frpcdeck
+```
 
-git clone https://github.com/Luqijian/FrpcDeck.git
-cd FrpcDeck
+2. 直接从[部署指南](docs/deployment.md)复制 `compose.yaml` 和 `.env` 两个文件的完整内容。
 
-# 可选：复制 .env 修改端口、时区等
-cp .env.example .env
+3. 启动：
 
+```bash
 docker compose pull
 docker compose up -d
 
@@ -81,22 +82,11 @@ docker compose up -d
 docker compose logs frpcdeck | grep 初始密码
 ```
 
-打开 `http://<服务器IP>:8080`，使用 `admin` 和日志中的初始密码登录。首次登录会被强制修改用户名与密码。
+打开 `http://<服务器IP>:8080`，使用 `admin` 和日志中的初始密码登录；首次登录会被强制修改用户名与密码。
 
-> Linux 上如果 frpc 需要访问宿主机的 `127.0.0.1` 服务，推荐使用 host 网络：
->
-> ```bash
-> docker compose -f compose.host.yaml pull
-> docker compose -f compose.host.yaml up -d
-> ```
+> Linux 上如果 frpc 需要访问宿主机的 `127.0.0.1` 服务，推荐使用 host 网络；完整可复制的 host 网络 `compose.yaml` 见部署指南。
 
-从源码构建（开发或需要自定义 frp 版本时）：
-
-```bash
-docker compose up -d --build
-```
-
-固定版本可设置 `IMAGE_TAG=3.1.0`。更多镜像与部署说明见[部署指南](docs/deployment.md)。
+只有开发或需要自定义 frp 版本时，才需要克隆仓库并从源码构建，见[开发指南](docs/development.md)。
 
 首次使用：
 

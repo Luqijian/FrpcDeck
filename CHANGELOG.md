@@ -19,6 +19,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Nothing yet.
 
+## [3.1.1] - 2026-10-18
+
+### Changed
+
+- Deployment guide and README no longer require cloning the repository.
+- Added complete copy-paste `compose.yaml` and `.env` examples for bridge and host networking.
+- Upgrade instructions now only pull the image and recreate the container.
+
 ## [3.1.0] - 2026-10-18
 
 ### Added
@@ -170,7 +178,8 @@ Initial public release.
 - Sensitive configuration files are written with mode `0600`; the data directory uses `0700`.
 - The frpc admin API is bound to `127.0.0.1` by default.
 
-[Unreleased]: https://github.com/Luqijian/FrpcDeck/compare/v3.1.0...HEAD
+[Unreleased]: https://github.com/Luqijian/FrpcDeck/compare/v3.1.1...HEAD
+[3.1.1]: https://github.com/Luqijian/FrpcDeck/compare/v3.1.0...v3.1.1
 [3.1.0]: https://github.com/Luqijian/FrpcDeck/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/Luqijian/FrpcDeck/compare/v2.1.1...v3.0.0
 [2.1.1]: https://github.com/Luqijian/FrpcDeck/compare/v2.1.0...v2.1.1

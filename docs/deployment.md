@@ -18,7 +18,7 @@ FrpcDeck 提供 GHCR 公开镜像，支持 `linux/amd64` 和 `linux/arm64`：
 
 ```text
 ghcr.io/luqijian/frpcdeck:latest
-ghcr.io/luqijian/frpcdeck:3.1.0
+ghcr.io/luqijian/frpcdeck:3.1.1
 ```
 
 镜像页面：<https://github.com/Luqijian/FrpcDeck/pkgs/container/frpcdeck>
@@ -54,17 +54,67 @@ docker run -d \
   ghcr.io/luqijian/frpcdeck:latest
 ```
 
-> 使用预构建镜像时，`IMAGE_TAG` 控制 Compose 拉取的标签；`latest` 跟随主分支，生产环境建议固定为 `3.1.0`。
+> 使用预构建镜像时，`IMAGE_TAG` 控制 Compose 拉取的标签；`latest` 跟随主分支，生产环境建议固定为 `3.1.1`。
 
-## 快速开始（bridge 网络）
+## 快速开始（无需克隆仓库）
+
+只需要创建两个文件，不需要下载源码。Linux / NAS 上执行：
 
 ```bash
-git clone https://github.com/Luqijian/FrpcDeck.git
-cd FrpcDeck
+mkdir -p ~/frpcdeck && cd ~/frpcdeck
+```
 
-cp .env.example .env
-# 可选：IMAGE_TAG=3.1.0
+创建 `compose.yaml`：
 
+```yaml
+name: frpcdeck
+
+services:
+  frpcdeck:
+    image: ghcr.io/luqijian/frpcdeck:${IMAGE_TAG:-3.1.1}
+    container_name: frpcdeck
+    restart: unless-stopped
+    stop_grace_period: 15s
+    ports:
+      - "${WEBUI_PORT:-8080}:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      PORT: "8080"
+      DATA_DIR: /data
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+    volumes:
+      - ./data:/data
+```
+
+创建 `.env`：
+
+```dotenv
+# 面板端口
+WEBUI_PORT=8080
+
+# 固定版本；latest 会跟随主分支
+IMAGE_TAG=3.1.1
+
+# 时区
+TZ=Asia/Shanghai
+
+# 通过 HTTPS 反向代理访问时设为 true
+COOKIE_SECURE=false
+
+# 位于反向代理之后时设为 true
+TRUST_PROXY=false
+
+# 反向代理改写 Host 时填写，例如 https://frp.example.com
+ALLOWED_ORIGINS=
+```
+
+启动：
+
+```bash
 docker compose pull
 docker compose up -d
 
@@ -72,17 +122,11 @@ docker compose up -d
 docker compose logs frpcdeck | grep 初始密码
 ```
 
-首次登录使用用户名 `admin` 和日志中的初始密码。登录后会强制进入账户设置页，必须修改用户名和密码；修改后的密码只保存 scrypt 哈希，不会写入 `frpc.toml`。
+访问 `http://<服务器IP>:8080`，使用用户名 `admin` 和日志中的初始密码登录。首次登录会强制修改用户名和密码。
 
-访问 `http://<服务器IP>:8080`，使用初始管理员账户登录。
-
-> `docker compose pull` 会拉取 GHCR 镜像；如果本地已有源码构建的镜像，也可以直接 `docker compose up -d`。
-
-从源码构建（开发或自定义 frp 版本）：
-
-```bash
-docker compose up -d --build
-```
+> Windows / macOS 用户不需要执行 `cat >`，直接用文本编辑器新建 `compose.yaml` 和 `.env`，粘贴上面的内容，然后在两个文件所在目录运行 `docker compose up -d`。
+>
+> 没有 `grep` 的环境可以运行 `docker compose logs frpcdeck`，在输出中查找「初始密码」。
 
 首次启动后：
 
@@ -93,18 +137,49 @@ docker compose up -d --build
    - 将配置写入数据目录的 `frpc.toml`；
    - 启动或重启自己的 frpc 进程。
 
+从源码构建（仅开发或需要自定义 frp 版本时，需要克隆仓库）：
+
+```bash
+git clone https://github.com/Luqijian/FrpcDeck.git
+cd FrpcDeck
+docker compose up -d --build
+```
+
 ## Linux 推荐：host 网络
 
-默认的 `compose.yaml` 使用 bridge 网络，只映射 8080 端口。此时容器里的 `127.0.0.1` 是容器自身，不是宿主机。
+默认的 bridge 网络只映射 8080 端口。此时容器里的 `127.0.0.1` 是容器自身，不是宿主机。
 
 如果要代理宿主机上的服务，有两种方式：
 
-1. 把代理的「本地地址」写成 `host.docker.internal`（compose 已配置 `host-gateway`）；
-2. 使用 host 网络：
+1. 把代理的「本地地址」写成 `host.docker.internal`（上面的 compose 已配置 `host-gateway`）；
+2. 使用 host 网络。把 `compose.yaml` 替换为：
+
+```yaml
+name: frpcdeck
+
+services:
+  frpcdeck:
+    image: ghcr.io/luqijian/frpcdeck:${IMAGE_TAG:-3.1.1}
+    container_name: frpcdeck
+    restart: unless-stopped
+    stop_grace_period: 15s
+    network_mode: host
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      HOST: 0.0.0.0
+      PORT: ${WEBUI_PORT:-8080}
+      DATA_DIR: /data
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+    volumes:
+      - ./data:/data
+```
+
+`.env` 保持不变，重启：
 
 ```bash
-docker compose -f compose.host.yaml pull
-docker compose -f compose.host.yaml up -d
+docker compose up -d
 ```
 
 host 网络下：
@@ -140,7 +215,7 @@ docker compose up -d
 
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
-| `IMAGE_TAG` | `latest` | Compose 使用的 GHCR 镜像标签，例如 `3.1.0`。 |
+| `IMAGE_TAG` | `latest` | Compose 使用的 GHCR 镜像标签，例如 `3.1.1`。 |
 | `PORT` | `8080` | 面板监听端口（容器内）。 |
 | `HOST` | `0.0.0.0` | 面板监听地址。 |
 | `DATA_DIR` | `/data`（镜像内） | 配置、认证、备份、会话密钥的持久化目录。 |
@@ -237,12 +312,11 @@ data/
 - 升级：
 
 ```bash
-git pull
 docker compose pull
 docker compose up -d
 ```
 
-升级到固定版本：在 `.env` 中设置 `IMAGE_TAG=3.1.0`（或新版本号），然后重新执行上面的命令。
+升级到固定版本：在 `.env` 中设置 `IMAGE_TAG=3.1.1`（或新版本号），然后重新执行上面的命令。
 
 - 数据在 `./data`，重建容器不会丢失。
 - 迁移服务器时，把整个 `data/` 目录复制到新服务器即可（注意权限 0600）。

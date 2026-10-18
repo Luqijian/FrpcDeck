@@ -60,18 +60,19 @@ One container includes the web UI, a Node service and frpc. No host Node.js inst
 
 Public image: **`ghcr.io/luqijian/frpcdeck:latest`** (linux/amd64, linux/arm64)
 
-Requirements: Docker 24+ and Docker Compose v2. No Node, pnpm or frp build environment is required when using the prebuilt image.
+Requirements: Docker 24+ and Docker Compose v2. Using the prebuilt image requires no Node, pnpm or frp build environment, and **no repository clone**.
+
+1. Create an empty directory:
 
 ```bash
-# optional: pull the image first
-docker pull ghcr.io/luqijian/frpcdeck:latest
+mkdir -p ~/frpcdeck && cd ~/frpcdeck
+```
 
-git clone https://github.com/Luqijian/FrpcDeck.git
-cd FrpcDeck
+2. Copy the complete `compose.yaml` and `.env` contents from the [deployment guide](docs/deployment.md).
 
-# optional: copy .env to change port, timezone, etc.
-cp .env.example .env
+3. Start:
 
+```bash
 docker compose pull
 docker compose up -d
 
@@ -81,20 +82,9 @@ docker compose logs frpcdeck | grep 初始密码
 
 Open `http://<server-ip>:8080` and sign in as `admin` with the initial password from the logs. The first login forces a username/password change.
 
-> On Linux, if frpc must reach services on the host's `127.0.0.1`, use host networking:
->
-> ```bash
-> docker compose -f compose.host.yaml pull
-> docker compose -f compose.host.yaml up -d
-> ```
+> On Linux, if frpc must reach services on the host's `127.0.0.1`, use host networking. The complete copyable host-network `compose.yaml` is in the deployment guide.
 
-Build from source (for development or a custom frp version):
-
-```bash
-docker compose up -d --build
-```
-
-Pin a release with `IMAGE_TAG=3.1.0`. See the [deployment guide](docs/deployment.md) for image tags and hardening.
+Clone the repository only for development or a custom frp build; see the [development guide](docs/development.md).
 
 Then:
 
