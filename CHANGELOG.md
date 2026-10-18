@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Nothing yet.
 
+## [3.2.1] - 2026-10-18
+
+### Fixed
+
+- Add spacing between the dashboard traffic strip and the proxy/config cards below it.
+
 ## [3.2.0] - 2026-10-18
 
 ### Added
@@ -195,7 +201,8 @@ Initial public release.
 - Sensitive configuration files are written with mode `0600`; the data directory uses `0700`.
 - The frpc admin API is bound to `127.0.0.1` by default.
 
-[Unreleased]: https://github.com/Luqijian/FrpcDeck/compare/v3.2.0...HEAD
+[Unreleased]: https://github.com/Luqijian/FrpcDeck/compare/v3.2.1...HEAD
+[3.2.1]: https://github.com/Luqijian/FrpcDeck/compare/v3.2.0...v3.2.1
 [3.2.0]: https://github.com/Luqijian/FrpcDeck/compare/v3.1.1...v3.2.0
 [3.1.1]: https://github.com/Luqijian/FrpcDeck/compare/v3.1.0...v3.1.1
 [3.1.0]: https://github.com/Luqijian/FrpcDeck/compare/v3.0.0...v3.1.0
