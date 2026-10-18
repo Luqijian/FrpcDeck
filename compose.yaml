@@ -1,0 +1,28 @@
+name: frpcdeck
+
+services:
+  frpcdeck:
+    build:
+      context: .
+      args:
+        FRP_VERSION: ${FRP_VERSION:-0.71.1}
+        FRP_DOWNLOAD_BASE: ${FRP_DOWNLOAD_BASE:-https://github.com/fatedier/frp/releases/download}
+    image: frpcdeck:${FRP_VERSION:-0.71.1}
+    container_name: frpcdeck
+    restart: unless-stopped
+    stop_grace_period: 15s
+    ports:
+      - "${WEBUI_PORT:-8080}:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      PORT: "8080"
+      DATA_DIR: /data
+      FRPC_WEBUI_USERNAME: ${FRPC_WEBUI_USERNAME:-admin}
+      FRPC_WEBUI_PASSWORD: ${FRPC_WEBUI_PASSWORD:?请在 .env 中设置 FRPC_WEBUI_PASSWORD}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+    volumes:
+      - ./data:/data

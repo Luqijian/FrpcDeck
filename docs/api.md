@@ -1,0 +1,208 @@
+# HTTP API
+
+FrpcDeck 的所有接口都在 `/api` 下。除健康检查、登录、初始化和认证状态外，均需要有效的会话 Cookie。
+
+## 认证与请求约定
+
+- 登录成功后服务端设置 `frpcdeck_session` Cookie（HttpOnly、SameSite=Lax、7 天）。
+- 修改类请求（POST/PUT/PATCH/DELETE）必须带 `X-FrpcDeck: 1` 请求头。
+- 请求带 `Origin` 时，服务端会检查其 Host 是否与当前 Host / `ALLOWED_ORIGINS` 一致。
+- JSON 请求体；默认大小限制 3 MB。
+- 错误响应格式：
+
+```json
+{
+  "error": {
+    "code": "validation-failed",
+    "message": "请填写 frps 服务器地址",
+    "details": {
+      "issues": [
+        {
+          "path": "serverAddr",
+          "label": "服务器地址",
+          "level": "error",
+          "message": "请填写 frps 服务器地址"
+        }
+      ]
+    }
+  }
+}
+```
+
+## 接口列表
+
+### 系统与认证
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/api/health` | 公开。返回应用版本、运行时长、frpc 版本 |
+| GET | `/api/auth/status` | 初始化/登录状态 |
+| POST | `/api/auth/setup` | 首次初始化管理员（仅未初始化时） |
+| POST | `/api/auth/login` | 登录 |
+| POST | `/api/auth/logout` | 清除会话 |
+| POST | `/api/auth/password` | 修改密码（环境变量托管时返回 409） |
+| GET | `/api/bootstrap` | 首屏数据：配置、设置、运行状态、版本、警告 |
+
+登录请求：
+
+```json
+{"username":"admin","password":"your-password"}
+```
+
+初始化请求：
+
+```json
+{"username":"admin","password":"at-least-8-characters"}
+```
+
+### 配置
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/api/config` | 当前配置、保存时间、校验提示、生成的 TOML |
+| PUT | `/api/config` | 应用完整配置；body：`{"config": {...}, "restart": true}` |
+| GET | `/api/config/toml` | 返回 `text/plain` 的运行配置 |
+| GET | `/api/config/download?format=toml\|json` | 下载配置 |
+| POST | `/api/config/validate` | 校验草稿，返回 issues / TOML / verify 结果 |
+| POST | `/api/config/import` | 解析 TOML/YAML/JSON/INI |
+| PUT | `/api/config/raw` | 直接应用 TOML 文本 |
+| POST | `/api/config/reset` | 重置配置，body 必须 `{"confirm":"RESET"}` |
+
+`PUT /api/config` 的返回：
+
+```json
+{
+  "config": {},
+  "savedAt": "2026-01-01T00:00:00.000Z",
+  "issues": [],
+  "verify": {"ok": true, "unavailable": false, "output": "..."},
+  "apply": {"attempted": true, "ok": true, "error": ""},
+  "runtime": {}
+}
+```
+
+即使配置已保存，只要 frpc 启动失败，`apply.ok` 也会是 `false`，HTTP 仍返回 200。前端会展示启动错误，草稿不会被丢弃。
+
+导入请求：
+
+```json
+{
+  "filename": "frpc.toml",
+  "content": "serverAddr = \"frps.example.com\"\n"
+}
+```
+
+### 运行状态
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/api/runtime` | frpc 进程、代理状态、访问器（配置数）、管理接口状态 |
+| POST | `/api/runtime/start` | 启动 frpc |
+| POST | `/api/runtime/stop` | 停止 frpc |
+| POST | `/api/runtime/restart` | 重启 frpc |
+| GET | `/api/logs?limit=500` | 最近日志（最多 2000 行） |
+| GET | `/api/logs/download` | 下载文本日志 |
+| GET | `/api/events` | SSE：`hello` / `log` / `state` 事件 |
+
+`/api/runtime` 返回示例：
+
+```json
+{
+  "process": {
+    "status": "running",
+    "pid": 123,
+    "connected": true,
+    "connection": "online",
+    "version": "0.71.1",
+    "adminAvailable": true,
+    "uptime": 42
+  },
+  "proxies": [
+    {
+      "name": "ssh",
+      "type": "tcp",
+      "status": "running",
+      "local_addr": "127.0.0.1:22",
+      "remote_addr": "0.0.0.0:6001",
+      "err": ""
+    }
+  ],
+  "visitors": []
+}
+```
+
+### 设置与备份
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/api/settings` | 自动启动 / 自动重启设置 |
+| PUT | `/api/settings` | 更新设置，body：`{"autoStart":true,"autoRestart":false}` |
+| GET | `/api/backups` | 备份列表 |
+| POST | `/api/backups` | 创建备份 |
+| DELETE | `/api/backups/:id` | 删除备份 |
+| GET | `/api/backups/:id/download` | 下载 JSON 备份 |
+| POST | `/api/backups/:id/restore` | 恢复并应用备份 |
+
+## SSE 日志
+
+`GET /api/events` 返回 `text/event-stream`：
+
+```text
+retry: 3000
+
+event: hello
+data: {"logs":[...],"runtime":{...},"lastSeq":123}
+
+event: log
+data: {"seq":124,"t":"2026-01-01T00:00:00Z","level":"info","source":"stdout","text":"..."}
+
+event: state
+data: {"process":{...},"proxies":[...],"visitors":[...]}
+```
+
+- 每 20 秒发送 `: ping` 心跳。
+- 代理支持 SSE；反向代理需要关闭缓冲。
+- 日志流中会过滤面板自己访问 frpc 管理 API 的访问日志。
+
+## 状态码
+
+| 状态码 | 含义 |
+| --- | --- |
+| 200 | 成功 |
+| 400 | 请求体/配置解析错误 |
+| 401 | 未登录或会话失效 |
+| 403 | 缺少 CSRF 头或来源不允许 |
+| 404 | 资源/备份不存在 |
+| 409 | 账户已初始化、环境变量托管密码 |
+| 422 | 字段校验失败、frpc 拒绝配置 |
+| 429 | 登录尝试过多 |
+| 500 | 内部错误（不会返回密码/令牌） |
+
+## cURL 示例
+
+```bash
+# 登录并保存 Cookie
+curl -s -c cookie.txt \
+  -H 'Content-Type: application/json' \
+  -H 'X-FrpcDeck: 1' \
+  -d '{"username":"admin","password":"your-password"}' \
+  http://127.0.0.1:8080/api/auth/login
+
+# 读取运行状态
+curl -s -b cookie.txt http://127.0.0.1:8080/api/runtime
+
+# 应用配置
+curl -s -b cookie.txt \
+  -H 'Content-Type: application/json' \
+  -H 'X-FrpcDeck: 1' \
+  -X PUT \
+  -d '{"config":{...},"restart":true}' \
+  http://127.0.0.1:8080/api/config
+
+# 跟随 SSE
+curl -N -b cookie.txt http://127.0.0.1:8080/api/events
+```
+
+## 兼容性
+
+当前 API 为 v1，路径和语义在 1.x 内保持兼容。破坏性变更会记录在 [CHANGELOG](../CHANGELOG.md) 并提升主版本。

@@ -1,0 +1,99 @@
+name: Bug report / 问题反馈
+description: Report a reproducible bug in FrpcDeck / 反馈可复现的问题
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve FrpcDeck. Please search existing issues first.
+        For security vulnerabilities, do **not** open a public issue — see [SECURITY.md](https://github.com/Luqijian/FrpcDeck/blob/main/SECURITY.md).
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-flight checks
+      options:
+        - label: I have read the documentation and troubleshooting guide.
+          required: true
+        - label: I have searched existing issues and this is not a duplicate.
+          required: true
+        - label: I have removed tokens, secret keys and other secrets from the report.
+          required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: FrpcDeck version
+      description: Release tag, image tag, or commit SHA.
+      placeholder: v1.0.0
+    validations:
+      required: true
+
+  - type: input
+    id: frp-version
+    attributes:
+      label: frpc / frps version
+      placeholder: 0.71.1 / 0.71.1
+    validations:
+      required: true
+
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment
+      options:
+        - Docker Compose (bridge network)
+        - Docker Compose (host network)
+        - Docker run
+        - Local Node.js
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: OS / architecture / browser
+      placeholder: Debian 12 amd64, Docker 27, Chrome 130
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Go to ...
+        2. Click ...
+        3. See error ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and screenshots
+      description: Redact tokens, secret keys, domains and public IPs as needed.
+      render: shell
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Relevant configuration (redacted)
+      description: Never paste real tokens or secret keys.
+      render: toml

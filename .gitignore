@@ -1,0 +1,16 @@
+node_modules/
+dist/
+data/
+.tools/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+test-results/
+docs/screenshots/*.tmp.png
+*.local
+coverage/

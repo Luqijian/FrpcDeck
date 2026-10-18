@@ -1,0 +1,62 @@
+{
+  "name": "frpcdeck",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A modern, responsive web UI for frpc configuration, validation and runtime management.",
+  "license": "MIT",
+  "author": {
+    "name": "Luqijian",
+    "url": "https://github.com/Luqijian"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Luqijian/FrpcDeck.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Luqijian/FrpcDeck/issues"
+  },
+  "homepage": "https://github.com/Luqijian/FrpcDeck#readme",
+  "keywords": [
+    "frp",
+    "frpc",
+    "frps",
+    "reverse-proxy",
+    "tunnel",
+    "nat-traversal",
+    "web-ui",
+    "self-hosted",
+    "docker",
+    "vue",
+    "fastify"
+  ],
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "packageManager": "pnpm@11.28.5",
+  "scripts": {
+    "dev": "node scripts/dev.js",
+    "dev:server": "node --watch server/index.js",
+    "dev:web": "vite --config web/vite.config.js",
+    "build": "vite build --config web/vite.config.js",
+    "start": "node server/index.js",
+    "test": "node --test tests/config.test.js tests/store.test.js tests/api.test.js",
+    "test:e2e": "node tests/e2e.mjs"
+  },
+  "dependencies": {
+    "@fastify/compress": "^8.3.0",
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/static": "^10.1.6",
+    "fastify": "^5.12.7",
+    "smol-toml": "^1.9.1",
+    "yaml": "^2.8.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.1",
+    "lucide-vue-next": "^0.548.0",
+    "playwright-core": "^1.57.0",
+    "vite": "^7.2.2",
+    "vue": "^3.5.44",
+    "vue-router": "^4.6.3"
+  }
+}
