@@ -19,6 +19,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Nothing yet.
 
+## [3.0.0] - 2026-10-18
+
+### Added
+
+- Multi-instance support: one FrpcDeck can run and manage multiple independent frpc processes, each connected to a different frps server.
+- Instance manager with create, rename, activate and delete flows.
+- Instance switcher in the top bar plus a dedicated **实例** page.
+- Per-instance config, proxies, visitors, runtime state, logs, backups and auto-start settings.
+- Automatic unique frpc admin ports for new instances (starting at 7400).
+- Instance API: `GET/POST /api/instances`, `PATCH/DELETE /api/instances/:id`, and `POST /api/instances/:id/activate`.
+- Request header `X-FrpcDeck-Instance` for instance-scoped APIs; SSE uses `?instance=`.
+
+### Changed
+
+- **Breaking data layout:** legacy single-instance files migrate automatically to `data/instances/default/`; global auth and session key stay at the data root.
+- Existing proxies, batch ports, visitors, backups, frps credentials and settings are preserved in the default instance.
+- Deleted instances are moved to `data/instances/.deleted/` rather than removed immediately.
+
 ## [2.1.1] - 2026-10-18
 
 ### Fixed
@@ -139,7 +157,8 @@ Initial public release.
 - Sensitive configuration files are written with mode `0600`; the data directory uses `0700`.
 - The frpc admin API is bound to `127.0.0.1` by default.
 
-[Unreleased]: https://github.com/Luqijian/FrpcDeck/compare/v2.1.1...HEAD
+[Unreleased]: https://github.com/Luqijian/FrpcDeck/compare/v3.0.0...HEAD
+[3.0.0]: https://github.com/Luqijian/FrpcDeck/compare/v2.1.1...v3.0.0
 [2.1.1]: https://github.com/Luqijian/FrpcDeck/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/Luqijian/FrpcDeck/compare/v2.0.2...v2.1.0
 [2.0.2]: https://github.com/Luqijian/FrpcDeck/compare/v2.0.1...v2.0.2

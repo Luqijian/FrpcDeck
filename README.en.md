@@ -32,6 +32,7 @@ One container includes the web UI, a Node service and frpc. No host Node.js inst
 
 ## Features
 
+- **Multiple instances**: one dashboard manages several independent frpc processes connecting to different frps servers; proxies, visitors, logs, backups and runtime state stay isolated.
 - **Complete client configuration**: server connection, token / OIDC, transport, TLS, QUIC, logging, admin API, metadata, every proxy type and 10 plugins.
 - **Batch ports**: accepts `parseNumberRangePair` ranges with import, creation, editing and export in one structured UI; each batch appears as a single proxy row.
 - **Native validation**: runs `frpc verify` before writing or applying a configuration.
@@ -88,7 +89,7 @@ Build from source (for development or a custom frp version):
 docker compose up -d --build
 ```
 
-Pin a release with `IMAGE_TAG=2.1.1`. See the [deployment guide](docs/deployment.md) for image tags and hardening.
+Pin a release with `IMAGE_TAG=3.0.0`. See the [deployment guide](docs/deployment.md) for image tags and hardening.
 
 Then:
 

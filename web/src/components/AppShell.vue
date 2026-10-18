@@ -86,6 +86,22 @@
         </div>
 
         <div class="topbar-actions">
+          <div v-if="store.instances.length" class="instance-picker">
+            <Layers :size="14" />
+            <select
+              :value="store.instanceId"
+              aria-label="切换 frpc 实例"
+              @change="onInstanceChange"
+            >
+              <option v-for="item in store.instances" :key="item.id" :value="item.id">
+                {{ item.name }} · {{ item.status === 'running' ? '运行中' : '未运行' }}
+              </option>
+            </select>
+            <RouterLink to="/instances" class="instance-manage" title="管理实例" aria-label="管理实例">
+              <Settings2 :size="14" />
+            </RouterLink>
+          </div>
+
           <RouterLink to="/logs" class="connection-pill" :class="`tone-${connectionTone}`">
             <StatusDot :tone="connectionTone" :pulse="isLive" />
             <span>{{ connectionLabel }}</span>
@@ -176,6 +192,7 @@ import {
   ArrowLeftRight,
   Check,
   ChevronRight,
+  Layers,
   LayoutDashboard,
   Loader2,
   LogOut,
@@ -184,6 +201,7 @@ import {
   ScrollText,
   Server,
   Settings,
+  Settings2,
   Sun,
   Waypoints,
 } from 'lucide-vue-next';
@@ -196,6 +214,7 @@ import {
   logout as doLogout,
   saveConfig,
   store,
+  switchInstance,
   toggleTheme,
 } from '@/store';
 
@@ -214,6 +233,7 @@ const primaryNav = computed(() => [
 
 const secondaryNav = computed(() => [
   { name: 'connection', label: '连接配置', icon: Server, dot: !store.config?.serverAddr },
+  { name: 'instances', label: '实例', icon: Layers },
   { name: 'logs', label: '运行日志', icon: ScrollText, dot: store.runtimeStatus === 'error' },
   { name: 'settings', label: '设置', icon: Settings },
 ]);
@@ -223,6 +243,7 @@ const mobileNav = computed(() => [
   { name: 'proxies', label: '代理', icon: Waypoints },
   { name: 'visitors', label: '访问器', icon: ArrowLeftRight },
   { name: 'connection', label: '连接', icon: Server },
+  { name: 'instances', label: '实例', icon: Layers },
   { name: 'logs', label: '日志', icon: ScrollText, dot: store.runtimeStatus === 'error' },
   { name: 'settings', label: '设置', icon: Settings },
 ]);
@@ -296,6 +317,12 @@ function confirmDiscard() {
 async function logout() {
   await doLogout();
   router.replace({ name: 'login' });
+}
+
+async function onInstanceChange(event) {
+  const target = event.target;
+  const ok = await switchInstance(target.value);
+  if (!ok) target.value = store.instanceId;
 }
 
 function onKeydown(event) {

@@ -44,6 +44,12 @@ const routes = [
         meta: { title: '连接配置', subtitle: 'frps 地址、认证、传输与日志' },
       },
       {
+        path: 'instances',
+        name: 'instances',
+        component: () => import('./pages/InstancesPage.vue'),
+        meta: { title: '实例', subtitle: '管理多个 frpc 进程与不同的 frps 连接' },
+      },
+      {
         path: 'logs',
         name: 'logs',
         component: () => import('./pages/LogsPage.vue'),

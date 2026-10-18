@@ -1,6 +1,6 @@
 {
   "name": "frpcdeck",
-  "version": "2.1.1",
+  "version": "3.0.0",
   "private": true,
   "type": "module",
   "description": "A modern, responsive web UI for frpc configuration, validation and runtime management.",
@@ -40,7 +40,7 @@
     "dev:web": "vite --config web/vite.config.js",
     "build": "vite build --config web/vite.config.js",
     "start": "node server/index.js",
-    "test": "node --test tests/config.test.js tests/store.test.js tests/api.test.js",
+    "test": "node --test tests/config.test.js tests/store.test.js tests/instances.test.js tests/api.test.js",
     "test:e2e": "node tests/e2e.mjs"
   },
   "dependencies": {

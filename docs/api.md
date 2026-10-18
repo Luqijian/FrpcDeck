@@ -2,11 +2,14 @@
 
 FrpcDeck 的所有接口都在 `/api` 下。除健康检查、登录和认证状态外，均需要有效的会话 Cookie。
 
+实例相关接口通过 `X-FrpcDeck-Instance: <实例ID>` 请求头选择实例；SSE 使用 `?instance=<实例ID>`。未提供或实例已不存在时使用服务端当前实例。
+
 ## 认证与请求约定
 
 - 首次启动自动生成随机管理员密码并打印到容器日志；登录响应包含 `mustChangePassword: true`。
 - 强制改密完成前，只有认证/改密接口可用，其他受保护接口返回 `403 password-change-required`。
 - 登录成功后服务端设置 `frpcdeck_session` Cookie（HttpOnly、SameSite=Lax、7 天）。
+- 每个实例有独立的配置、运行状态、日志和备份；切换实例时客户端需要更新 `X-FrpcDeck-Instance` 请求头。
 - 修改类请求（POST/PUT/PATCH/DELETE）必须带 `X-FrpcDeck: 1` 请求头。
 - 请求带 `Origin` 时，服务端会检查其 Host 是否与当前 Host / `ALLOWED_ORIGINS` 一致。
 - JSON 请求体；默认大小限制 3 MB。
@@ -43,7 +46,12 @@ FrpcDeck 的所有接口都在 `/api` 下。除健康检查、登录和认证状
 | POST | `/api/auth/logout` | 清除会话 |
 | POST | `/api/auth/credentials` | 修改用户名和密码（首次登录强制使用） |
 | POST | `/api/auth/password` | 仅修改密码的兼容接口 |
-| GET | `/api/bootstrap` | 首屏数据：配置、设置、运行状态、版本、警告 |
+| GET | `/api/instances` | 列出实例与运行摘要 |
+| POST | `/api/instances` | 创建实例（`name`、可选 `config`） |
+| PATCH | `/api/instances/:id` | 重命名实例 |
+| DELETE | `/api/instances/:id` | 删除实例（body 需 `confirm` 为实例名或 `DELETE`） |
+| POST | `/api/instances/:id/activate` | 设置默认实例 |
+| GET | `/api/bootstrap` | 首屏数据：当前实例、实例列表、配置、设置、运行状态、版本、警告 |
 
 登录请求：
 

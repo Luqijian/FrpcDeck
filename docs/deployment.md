@@ -18,7 +18,7 @@ FrpcDeck 提供 GHCR 公开镜像，支持 `linux/amd64` 和 `linux/arm64`：
 
 ```text
 ghcr.io/luqijian/frpcdeck:latest
-ghcr.io/luqijian/frpcdeck:2.1.1
+ghcr.io/luqijian/frpcdeck:3.0.0
 ```
 
 镜像页面：<https://github.com/Luqijian/FrpcDeck/pkgs/container/frpcdeck>
@@ -54,7 +54,7 @@ docker run -d \
   ghcr.io/luqijian/frpcdeck:latest
 ```
 
-> 使用预构建镜像时，`IMAGE_TAG` 控制 Compose 拉取的标签；`latest` 跟随主分支，生产环境建议固定为 `2.1.1`。
+> 使用预构建镜像时，`IMAGE_TAG` 控制 Compose 拉取的标签；`latest` 跟随主分支，生产环境建议固定为 `3.0.0`。
 
 ## 快速开始（bridge 网络）
 
@@ -63,7 +63,7 @@ git clone https://github.com/Luqijian/FrpcDeck.git
 cd FrpcDeck
 
 cp .env.example .env
-# 可选：IMAGE_TAG=2.1.1
+# 可选：IMAGE_TAG=3.0.0
 
 docker compose pull
 docker compose up -d
@@ -140,7 +140,7 @@ docker compose up -d
 
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
-| `IMAGE_TAG` | `latest` | Compose 使用的 GHCR 镜像标签，例如 `2.1.1`。 |
+| `IMAGE_TAG` | `latest` | Compose 使用的 GHCR 镜像标签，例如 `3.0.0`。 |
 | `PORT` | `8080` | 面板监听端口（容器内）。 |
 | `HOST` | `0.0.0.0` | 面板监听地址。 |
 | `DATA_DIR` | `/data`（镜像内） | 配置、认证、备份、会话密钥的持久化目录。 |
@@ -187,21 +187,44 @@ IMAGE_TAG=local docker compose up -d
 
 > 镜像标签由 `IMAGE_TAG` 控制；`FRP_VERSION` 只影响构建产物。固定使用公开镜像时，无需设置 `FRP_VERSION`。
 
+## 多实例
+
+一个 FrpcDeck 可以同时管理多个 frpc 实例，每个实例连接不同的 frps：
+
+![实例管理](screenshots/instances.png)
+
+- 打开「实例」页面，点击「新建 frpc 实例」
+- 填写实例名称、frps 地址/端口和可选 Token
+- 创建后会自动切换到新实例；之后的「代理」「访问器」「连接配置」「运行日志」只作用于当前实例
+- 顶部栏可以随时切换实例，切换后页面、SSE 状态和日志流都会切换到对应实例
+- 每个实例有独立的代理、访问器、备份和自动启动设置
+- 实例删除后配置会移到 `data/instances/.deleted/`，不会立即物理清除
+
+每个 frpc 进程都会占用自己的本地管理端口，默认 7400、7401……；新建实例时会自动分配，避免冲突。
+
 ## 数据、备份与升级
 
-默认数据目录是项目下的 `./data`：
+默认数据目录是项目下的 `./data`。认证数据由所有实例共享，每个 frpc 实例拥有独立的配置、运行文件与备份：
 
 ```text
 data/
-├─ auth.json        # 管理员密码哈希与版本
-├─ config.json      # 面板内部配置模型
-├─ frpc.toml        # 生成的 frpc 配置（0600）
-├─ settings.json    # 自动启动/自动重启
-├─ session.key      # 会话签名密钥
-└─ backups/         # 最近 30 份配置备份
+├─ auth.json                 # 管理员密码哈希与版本（全局）
+├─ session.key               # 会话签名密钥（全局）
+├─ instances.json            # 实例列表与当前实例
+└─ instances/
+   ├─ default/
+   │  ├─ config.json          # 该实例的配置模型
+   │  ├─ frpc.toml            # 该实例的 frpc 配置（0600）
+   │  ├─ settings.json        # 自动启动/自动重启
+   │  └─ backups/             # 该实例最近 30 份配置备份
+   └─ inst-xxxxxxxx/
+      └─ ...
 ```
 
-- 每次应用配置前自动备份；也可以「设置 → 备份与恢复」手动创建。
+- 旧版本的单实例 `config.json`、`frpc.toml`、`settings.json` 和 `backups/` 会在升级后自动迁移到 `instances/default/`，无需手动操作。
+- 每个实例启动独立的 frpc 进程，并自动分配不同的本地管理接口端口（默认从 7400 开始）。
+- 删除实例时会先停止其 frpc，并把目录移动到 `instances/.deleted/`，便于人工恢复。
+- 每次应用配置前自动备份；也可以「设置 → 备份与恢复」手动创建。备份属于当前实例。
 - 备份文件包含 frps token 和代理密钥，请按机密数据保护。
 - 升级：
 
@@ -211,7 +234,7 @@ docker compose pull
 docker compose up -d
 ```
 
-升级到固定版本：在 `.env` 中设置 `IMAGE_TAG=2.1.1`（或新版本号），然后重新执行上面的命令。
+升级到固定版本：在 `.env` 中设置 `IMAGE_TAG=3.0.0`（或新版本号），然后重新执行上面的命令。
 
 - 数据在 `./data`，重建容器不会丢失。
 - 迁移服务器时，把整个 `data/` 目录复制到新服务器即可（注意权限 0600）。

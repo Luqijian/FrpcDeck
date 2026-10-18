@@ -21,7 +21,7 @@
           <span>FrpcDeck</span>
           <small>frpc control surface</small>
         </div>
-        <span class="login-version">v{{ store.app.version || '2.1.1' }}</span>
+        <span class="login-version">v{{ store.app.version || '3.0.0' }}</span>
       </div>
 
       <div class="login-hero">
@@ -156,7 +156,7 @@
         </div>
 
         <div class="login-card-foot">
-          <span>FrpcDeck {{ store.app.version || '2.1.1' }}</span>
+          <span>FrpcDeck {{ store.app.version || '3.0.0' }}</span>
           <span>frpc {{ store.frpc.version || '0.71.1' }}</span>
         </div>
       </div>

@@ -9,6 +9,7 @@ import {
 } from './config.js';
 import { SESSION_COOKIE } from './auth.js';
 import { createRequire } from 'node:module';
+import { AsyncLocalStorage } from 'node:async_hooks';
 
 const require = createRequire(import.meta.url);
 const APP_VERSION = require('../package.json').version;
@@ -77,7 +78,34 @@ function parseCookies(request) {
 }
 
 export async function registerRoutes(app, services) {
-  const { store, auth, frpc, startedAt } = services;
+  const { manager, auth, startedAt } = services;
+  const instanceContext = new AsyncLocalStorage();
+  const fallbackInstance = manager.current();
+  const context = () => instanceContext.getStore() || {
+    instance: fallbackInstance,
+    store: fallbackInstance.store,
+    frpc: fallbackInstance.frpc,
+  };
+  const store = new Proxy({}, {
+    get(_target, prop) {
+      const value = context().store[prop];
+      return typeof value === 'function' ? value.bind(context().store) : value;
+    },
+    set(_target, prop, value) {
+      context().store[prop] = value;
+      return true;
+    },
+  });
+  const frpc = new Proxy({}, {
+    get(_target, prop) {
+      const value = context().frpc[prop];
+      return typeof value === 'function' ? value.bind(context().frpc) : value;
+    },
+    set(_target, prop, value) {
+      context().frpc[prop] = value;
+      return true;
+    },
+  });
   const allowedOrigins = String(process.env.ALLOWED_ORIGINS || '')
     .split(',')
     .map((item) => item.trim())
@@ -139,6 +167,30 @@ export async function registerRoutes(app, services) {
   function setSessionCookie(reply) {
     reply.setCookie(SESSION_COOKIE, auth.issueSession(), auth.cookieOptions());
   }
+
+  app.addHook('onRequest', (request, reply, done) => {
+    const rawUrl = String(request.raw.url || '');
+    if (!rawUrl.startsWith('/api/')) {
+      done();
+      return;
+    }
+    let requestedId = request.headers['x-frpcdeck-instance'];
+    if (Array.isArray(requestedId)) requestedId = requestedId[0];
+    if (!requestedId) {
+      try {
+        requestedId = new URL(rawUrl, 'http://localhost').searchParams.get('instance');
+      } catch {
+        requestedId = null;
+      }
+    }
+    const instance = manager.resolve(requestedId) || manager.current();
+    if (!instance) {
+      done(apiError(503, 'no-instance', '没有可用的 frpc 实例'));
+      return;
+    }
+    request.instanceId = instance.id;
+    instanceContext.run({ instance, store: instance.store, frpc: instance.frpc }, done);
+  });
 
   app.addHook('preHandler', async (request, reply) => {
     const pathname = String(request.raw.url || '').split('?')[0];
@@ -244,25 +296,97 @@ export async function registerRoutes(app, services) {
   });
 
   // ----------------------------------------------------------- bootstrap ----
-  app.get('/api/bootstrap', async () => ({
-    config: store.config,
-    savedAt: store.savedAt,
-    settings: store.settings,
-    auth: auth.status(),
-    runtime: frpc.runtime(),
-    frpc: {
-      bin: frpc.bin,
-      available: frpc.state.binAvailable,
-      version: frpc.state.version,
-      configPath: frpc.configPath,
-    },
-    app: {
-      name: 'FrpcDeck',
-      version: APP_VERSION,
-      node: process.version,
-    },
-    warnings: [...store.warnings, ...auth.warnings],
-  }));
+  app.get('/api/bootstrap', async () => {
+    const ctx = context();
+    return {
+      config: ctx.store.config,
+      savedAt: ctx.store.savedAt,
+      settings: ctx.store.settings,
+      auth: auth.status(),
+      instanceId: ctx.instance.id,
+      instance: manager.summary(ctx.instance),
+      instances: manager.summaries(ctx.instance.id),
+      runtime: ctx.frpc.runtime(),
+      frpc: {
+        bin: ctx.frpc.bin,
+        available: ctx.frpc.state.binAvailable,
+        version: ctx.frpc.state.version,
+        configPath: ctx.frpc.configPath,
+      },
+      app: {
+        name: 'FrpcDeck',
+        version: APP_VERSION,
+        node: process.version,
+      },
+      warnings: [...manager.warnings, ...ctx.store.warnings, ...auth.warnings],
+    };
+  });
+
+  // ----------------------------------------------------------- instances ----
+  app.get('/api/instances', async () => {
+    const ctx = context();
+    return {
+      instances: manager.summaries(ctx.instance.id),
+      activeId: ctx.instance.id,
+    };
+  });
+
+  app.post('/api/instances', async (request) => {
+    const body = bodyObject(request);
+    try {
+      const instance = await manager.create({
+        name: body.name,
+        config: body.config,
+      });
+      return {
+        instance: manager.summary(instance),
+        instances: manager.summaries(context().instance.id),
+      };
+    } catch (error) {
+      throw apiError(400, 'instance-create-failed', error.message);
+    }
+  });
+
+  app.patch('/api/instances/:id', async (request) => {
+    try {
+      const summary = await manager.rename(request.params.id, bodyObject(request).name);
+      return {
+        instance: summary,
+        instances: manager.summaries(context().instance.id),
+      };
+    } catch (error) {
+      throw apiError(400, 'instance-rename-failed', error.message);
+    }
+  });
+
+  app.delete('/api/instances/:id', async (request) => {
+    const instance = manager.get(request.params.id);
+    if (!instance) throw apiError(404, 'instance-not-found', '实例不存在');
+    const confirm = String(bodyObject(request).confirm || '');
+    if (confirm !== instance.name && confirm !== 'DELETE') {
+      throw apiError(400, 'confirmation-required', '请输入实例名称或 DELETE 确认删除');
+    }
+    try {
+      await manager.remove(instance.id);
+      const current = manager.current();
+      return {
+        ok: true,
+        activeId: current?.id || '',
+        instances: manager.summaries(current?.id),
+      };
+    } catch (error) {
+      throw apiError(400, 'instance-delete-failed', error.message);
+    }
+  });
+
+  app.post('/api/instances/:id/activate', async (request) => {
+    try {
+      const summary = await manager.setActive(request.params.id);
+      return { instance: summary, instances: manager.summaries(summary.id) };
+    } catch (error) {
+      throw apiError(404, 'instance-not-found', error.message);
+    }
+  });
 
   // -------------------------------------------------------------- config ----
   async function validateForApply(config) {
@@ -524,6 +648,7 @@ export async function registerRoutes(app, services) {
 
   // ------------------------------------------------------------------ SSE ----
   app.get('/api/events', { compress: false }, async (request, reply) => {
+    const activeFrpc = context().frpc;
     reply.hijack();
     const res = reply.raw;
     res.writeHead(200, {
@@ -544,15 +669,15 @@ export async function registerRoutes(app, services) {
     };
 
     send('hello', {
-      logs: frpc.history(300),
-      runtime: frpc.runtime(),
-      lastSeq: frpc.seq,
+      logs: activeFrpc.history(300),
+      runtime: activeFrpc.runtime(),
+      lastSeq: activeFrpc.seq,
     });
 
     const onLog = (entry) => send('log', entry);
     const onState = (runtime) => send('state', runtime);
-    frpc.on('log', onLog);
-    frpc.on('state', onState);
+    activeFrpc.on('log', onLog);
+    activeFrpc.on('state', onState);
 
     const heartbeat = setInterval(() => {
       if (!res.writableEnded && !res.destroyed) res.write(': ping\n\n');
@@ -561,8 +686,8 @@ export async function registerRoutes(app, services) {
 
     const cleanup = () => {
       clearInterval(heartbeat);
-      frpc.off('log', onLog);
-      frpc.off('state', onState);
+      activeFrpc.off('log', onLog);
+      activeFrpc.off('state', onState);
     };
     request.raw.on('close', cleanup);
     request.raw.on('error', cleanup);

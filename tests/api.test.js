@@ -374,6 +374,46 @@ test('batch port imports are normalized, editable and applied as one proxy per r
   assert.match(current.data.toml, /Sunshine-UDP/);
 });
 
+test('instances can be created, activated and deleted through the API', async () => {
+  const created = await request('/api/instances', {
+    method: 'POST',
+    body: {
+      name: '测试实例',
+      config: {
+        serverAddr: 'second.example.com',
+        serverPort: 7000,
+        auth: { method: 'token', token: 'second-token' },
+      },
+    },
+  });
+  assert.equal(created.response.status, 200);
+  const id = created.data.instance.id;
+  assert.ok(id);
+  assert.equal(created.data.instance.serverAddr, 'second.example.com');
+
+  const list = await request('/api/instances');
+  assert.ok(list.data.instances.some((item) => item.id === id));
+
+  const selected = await request('/api/bootstrap', { headers: { 'X-FrpcDeck-Instance': id } });
+  assert.equal(selected.response.status, 200);
+  assert.equal(selected.data.instanceId, id);
+  assert.equal(selected.data.config.serverAddr, 'second.example.com');
+  assert.ok(selected.data.instances.length >= 2);
+
+  const activated = await request(`/api/instances/${id}/activate`, { method: 'POST', body: {} });
+  assert.equal(activated.response.status, 200);
+  assert.equal(activated.data.instance.id, id);
+
+  const deleted = await request(`/api/instances/${id}`, {
+    method: 'DELETE',
+    body: { confirm: '测试实例' },
+  });
+  assert.equal(deleted.response.status, 200);
+  assert.equal(deleted.data.instances.some((item) => item.id === id), false);
+  const fallback = await request('/api/bootstrap');
+  assert.notEqual(fallback.data.instanceId, id);
+});
+
 test('username and password can both be changed from the WebUI API', async () => {
   const changed = await request('/api/auth/credentials', {
     method: 'POST',

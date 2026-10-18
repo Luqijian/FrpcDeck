@@ -12,6 +12,17 @@ function notifyUnauthorized() {
   window.dispatchEvent(new CustomEvent('frpcdeck:unauthorized'));
 }
 
+let activeInstanceId = '';
+
+export function setApiInstance(id) {
+  activeInstanceId = String(id || '');
+}
+
+function instanceHeaders(path) {
+  if (!activeInstanceId || path.startsWith('/api/auth/')) return {};
+  return { 'X-FrpcDeck-Instance': activeInstanceId };
+}
+
 async function request(path, { method = 'GET', body, headers = {}, raw = false } = {}) {
   const upper = method.toUpperCase();
   const mutating = !['GET', 'HEAD'].includes(upper);
@@ -24,6 +35,7 @@ async function request(path, { method = 'GET', body, headers = {}, raw = false }
         Accept: 'application/json',
         ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
         ...(mutating ? { 'X-FrpcDeck': '1' } : {}),
+        ...instanceHeaders(path),
         ...headers,
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -68,7 +80,8 @@ export const api = {
   get: (path) => request(path),
   post: (path, body) => request(path, { method: 'POST', body }),
   put: (path, body) => request(path, { method: 'PUT', body }),
-  delete: (path) => request(path, { method: 'DELETE' }),
+  patch: (path, body) => request(path, { method: 'PATCH', body }),
+  delete: (path, body) => request(path, { method: 'DELETE', body }),
   request,
   async download(path, filename) {
     const response = await request(path, { raw: true });

@@ -1,5 +1,5 @@
 import { computed, reactive } from 'vue';
-import { api } from './api';
+import { api, setApiInstance } from './api';
 
 let eventSource = null;
 let runtimeTimer = null;
@@ -17,6 +17,13 @@ function initialEditorLayout() {
   if (typeof window === 'undefined') return 'drawer';
   return localStorage.getItem('frpcdeck-editor-layout') === 'modal' ? 'modal' : 'drawer';
 }
+
+function initialInstanceId() {
+  if (typeof window === 'undefined') return '';
+  return localStorage.getItem('frpcdeck-instance') || '';
+}
+
+setApiInstance(initialInstanceId());
 
 export const store = reactive({
   ready: false,
@@ -57,6 +64,9 @@ export const store = reactive({
   toasts: [],
   theme: initialTheme(),
   editorLayout: initialEditorLayout(),
+  instanceId: initialInstanceId(),
+  instance: null,
+  instances: [],
   saving: false,
   initializing: false,
   busy: false,
@@ -176,6 +186,13 @@ export async function init() {
 async function loadBootstrap() {
   const data = await api.get('/api/bootstrap');
   store.auth = { ...store.auth, ...data.auth, authenticated: true, user: data.auth.username };
+  store.instanceId = data.instanceId || '';
+  store.instance = data.instance || null;
+  store.instances = data.instances || [];
+  if (store.instanceId) {
+    setApiInstance(store.instanceId);
+    localStorage.setItem('frpcdeck-instance', store.instanceId);
+  }
   store.config = data.config;
   store.savedConfig = clone(data.config);
   store.savedAt = data.savedAt;
@@ -187,6 +204,61 @@ async function loadBootstrap() {
   store.issues = [];
   connectEvents();
   startRuntimePolling();
+}
+
+export async function refreshInstances() {
+  const data = await api.get('/api/instances');
+  store.instances = data.instances || [];
+  return store.instances;
+}
+
+export async function switchInstance(id) {
+  const next = String(id || '');
+  if (!next || next === store.instanceId) return false;
+  if (store.dirty) {
+    const ok = window.confirm('当前实例还有未应用的更改，切换实例会放弃这些草稿。继续吗？');
+    if (!ok) return false;
+  }
+  try {
+    await api.post(`/api/instances/${encodeURIComponent(next)}/activate`, {});
+    setApiInstance(next);
+    localStorage.setItem('frpcdeck-instance', next);
+    disconnectEvents();
+    stopRuntimePolling();
+    store.logs = [];
+    store.issues = [];
+    await loadBootstrap();
+    return true;
+  } catch (error) {
+    toast(error.message || '切换实例失败', 'error');
+    return false;
+  }
+}
+
+export async function createInstance({ name, config }) {
+  const data = await api.post('/api/instances', { name, config });
+  if (data.instances) store.instances = data.instances;
+  return data.instance;
+}
+
+export async function renameInstance(id, name) {
+  const data = await api.patch(`/api/instances/${encodeURIComponent(id)}`, { name });
+  if (data.instances) store.instances = data.instances;
+  if (store.instance?.id === id) store.instance = data.instance;
+  return data.instance;
+}
+
+export async function deleteInstance(id, confirm) {
+  const data = await api.delete(`/api/instances/${encodeURIComponent(id)}`, { confirm });
+  if (data.instances) store.instances = data.instances;
+  if (store.instanceId === id) {
+    setApiInstance(data.activeId || '');
+    localStorage.setItem('frpcdeck-instance', data.activeId || '');
+    disconnectEvents();
+    stopRuntimePolling();
+    await loadBootstrap();
+  }
+  return data;
 }
 
 export async function login(username, password) {
@@ -232,7 +304,8 @@ function connectEvents() {
   disconnectEvents();
   if (typeof EventSource === 'undefined') return;
   store.sseStatus = 'connecting';
-  eventSource = new EventSource('/api/events');
+  const instance = store.instanceId ? `?instance=${encodeURIComponent(store.instanceId)}` : '';
+  eventSource = new EventSource(`/api/events${instance}`);
   eventSource.onopen = () => {
     store.sseStatus = 'open';
     store.lastEventAt = Date.now();
@@ -276,6 +349,7 @@ function startRuntimePolling() {
   runtimeTimer = setInterval(() => {
     if (document.visibilityState === 'visible' && store.auth.authenticated) {
       refreshRuntime().catch(() => {});
+      refreshInstances().catch(() => {});
     }
   }, 15000);
 }

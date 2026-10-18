@@ -32,6 +32,7 @@ FrpcDeck 不是 frps 服务端面板。它管理运行在内网一侧的 **frpc*
 
 ## 核心特性
 
+- **多实例**：一个面板管理多个独立 frpc 进程，可分别连接不同 frps；代理、访问器、日志、备份和运行状态互相隔离。
 - **覆盖 frpc 客户端主要配置**：服务端连接、Token / OIDC、传输、TLS、QUIC、日志、管理接口、元数据，以及全部代理类型与 10 种插件。
 - **批量端口**：兼容 `parseNumberRangePair` 端口范围写法；导入、新建、编辑和导出都在同一套结构化界面中完成，列表中一个批次只占一条代理。
 - **原生校验**：应用前执行 `frpc verify`，避免把无法启动的配置写入运行文件。
@@ -90,7 +91,7 @@ docker compose logs frpcdeck | grep 初始密码
 docker compose up -d --build
 ```
 
-固定版本可设置 `IMAGE_TAG=2.1.1`。更多镜像与部署说明见[部署指南](docs/deployment.md)。
+固定版本可设置 `IMAGE_TAG=3.0.0`。更多镜像与部署说明见[部署指南](docs/deployment.md)。
 
 首次使用：
 

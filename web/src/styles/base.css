@@ -617,6 +617,50 @@ strong {
   gap: 8px;
 }
 
+.instance-picker {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.instance-picker > svg {
+  flex: none;
+  color: var(--accent);
+}
+
+.instance-picker select {
+  max-width: 150px;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.instance-manage {
+  display: grid;
+  flex: none;
+  width: 20px;
+  height: 24px;
+  place-items: center;
+  padding-left: 5px;
+  border-left: 1px solid var(--line);
+  color: var(--faint);
+}
+
+.instance-manage:hover {
+  color: var(--accent);
+}
+
 .connection-pill {
   display: inline-flex;
   align-items: center;

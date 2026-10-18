@@ -6,10 +6,9 @@ import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';
 import fastifyCookie from '@fastify/cookie';
 import fastifyCompress from '@fastify/compress';
-import { Store } from './store.js';
+import crypto from 'node:crypto';
 import { AuthManager } from './auth.js';
-import { FrpcManager } from './frpc.js';
-import { hasErrors, validateConfig } from './config.js';
+import { InstanceManager } from './instances.js';
 import { registerRoutes } from './routes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -38,6 +37,20 @@ async function loadDotEnv() {
 function boolEnv(value, fallback = false) {
   if (value === undefined) return fallback;
   return ['1', 'true', 'yes', 'on'].includes(String(value).toLowerCase());
+}
+
+async function loadOrCreateSecret(dataDir) {
+  const file = path.join(dataDir, 'session.key');
+  try {
+    const value = (await fsp.readFile(file, 'utf8')).trim();
+    if (value.length >= 32) return value;
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+  const value = crypto.randomBytes(32).toString('hex');
+  await fsp.mkdir(dataDir, { recursive: true, mode: 0o700 });
+  await fsp.writeFile(file, value, { mode: 0o600 });
+  return value;
 }
 
 async function main() {
@@ -90,10 +103,10 @@ async function main() {
   await app.register(fastifyCompress, { global: true, threshold: 1024 });
   await app.register(fastifyCookie);
 
-  const store = await new Store(dataDir).init();
+  const manager = await new InstanceManager({ dataDir, frpcBin }).init();
   const auth = await new AuthManager({
     dataDir,
-    secret: store.secret,
+    secret: await loadOrCreateSecret(dataDir),
     cookieSecure: boolEnv(process.env.COOKIE_SECURE, false),
   }).init();
   if (auth.initialPassword) {
@@ -107,15 +120,6 @@ async function main() {
     console.warn('');
   }
 
-  const frpc = new FrpcManager({
-    bin: frpcBin,
-    configPath: path.join(dataDir, 'frpc.toml'),
-    dataDir,
-    getConfig: () => store.config,
-    getSettings: () => store.settings,
-  });
-  await frpc.init();
-
   const hasFrontend = fs.existsSync(path.join(staticDir, 'index.html'));
   const sendIndex = (reply) => {
     reply.header('Cache-Control', 'no-cache');
@@ -123,9 +127,8 @@ async function main() {
   };
 
   await registerRoutes(app, {
-    store,
+    manager,
     auth,
-    frpc,
     startedAt,
     hasFrontend,
     sendIndex,
@@ -148,7 +151,7 @@ async function main() {
     app.log.warn('未找到前端构建产物，仅提供 API。开发请运行 pnpm dev。');
   }
 
-  for (const warning of [...store.warnings, ...auth.warnings]) {
+  for (const warning of [...manager.warnings, ...auth.warnings]) {
     app.log.warn(warning);
   }
 
@@ -160,13 +163,15 @@ async function main() {
     return;
   }
 
+  const current = manager.current();
   app.log.info(`FrpcDeck 已启动: http://${host === '0.0.0.0' ? 'localhost' : host}:${port}`);
   app.log.info(`数据目录: ${dataDir}`);
-  if (frpc.state.binAvailable) {
-    app.log.info(`frpc: ${frpc.state.version} (${frpcBin})`);
+  if (current?.frpc.state.binAvailable) {
+    app.log.info(`frpc: ${current.frpc.state.version} (${frpcBin})`);
   } else {
     app.log.warn(`未找到 frpc 可执行文件：${frpcBin}`);
   }
+  app.log.info(`已加载 ${manager.instances.size} 个实例`);
 
   let shuttingDown = false;
   const shutdown = async (signal) => {
@@ -176,7 +181,7 @@ async function main() {
     const forceTimer = setTimeout(() => process.exit(1), 12000);
     forceTimer.unref();
     try {
-      await frpc.dispose();
+      await manager.dispose();
       await app.close();
       process.exit(0);
     } catch (error) {
@@ -186,30 +191,6 @@ async function main() {
   };
   process.on('SIGINT', () => shutdown('SIGINT'));
   process.on('SIGTERM', () => shutdown('SIGTERM'));
-
-  setTimeout(async () => {
-    if (!store.settings.autoStart) return;
-    if (!store.config.serverAddr) {
-      app.log.info('尚未配置 frps 地址，跳过 frpc 自动启动。');
-      return;
-    }
-    const issues = validateConfig(store.config);
-    if (hasErrors(issues)) {
-      app.log.warn('当前配置存在错误，跳过 frpc 自动启动。');
-      return;
-    }
-    const verify = await frpc.validateFile(frpc.configPath);
-    if (!verify.ok && !verify.unavailable) {
-      app.log.warn(`frpc 配置校验失败，跳过自动启动：${verify.message}`);
-      return;
-    }
-    try {
-      await frpc.start();
-      app.log.info('frpc 已自动启动');
-    } catch (error) {
-      app.log.error(`frpc 自动启动失败：${error.message}`);
-    }
-  }, 400).unref();
 
   app.log.info(`监听地址 ${host}:${port}`);
 }
