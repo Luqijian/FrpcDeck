@@ -46,7 +46,7 @@
   "dependencies": {
     "@fastify/compress": "^8.3.0",
     "@fastify/cookie": "^11.0.2",
-    "@fastify/static": "^10.1.6",
+    "@fastify/static": "^10.1.7",
     "dompurify": "^3.4.17",
     "fastify": "^5.12.7",
     "marked": "^18.1.1",
